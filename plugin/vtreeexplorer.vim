@@ -1,6 +1,6 @@
 "" File: vtreeexplorer.vim
 "" Description: tree-like file system explorer for vim
-"" Version: $Revision: 1.17 $ $Date: 2002/05/30 18:20:53 $
+"" Version: $Revision: 1.19 $ $Date: 2003/01/26 17:02:08 $
 "" Author: TS Urban (tsurban@HORMELattbi.com)
 ""   (remove HORMEL from my email first)
 ""
@@ -59,7 +59,7 @@ function! s:TreeExplorer(split, start) " <<<
 	silent execute cmd
 
 	"" chars to escape in file/dir names - TODO '+' ?
-	let w:escape_chars =  " `|\"~'"
+	let w:escape_chars =  " `|\"~'#"
 
 	" win specific vars from globals if they exist
 	let w:hidden_files = (exists("g:treeExplHidden")) ? 1 : 0
