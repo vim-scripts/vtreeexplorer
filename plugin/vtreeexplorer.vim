@@ -30,7 +30,8 @@
 "" prevent multiple loading unless developing with g:treeExplDebug
 if exists("vloaded_tree_explorer") && !exists("g:treeExplDebug")
 	finish
-endif let vloaded_tree_explorer=1
+endif
+let vloaded_tree_explorer=1
 
 "" line continuation used here ??
 let s:cpo_save = &cpo
