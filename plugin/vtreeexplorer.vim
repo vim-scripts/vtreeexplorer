@@ -140,8 +140,9 @@ function! s:InitWithDir(dir) " <<<
 
 	normal Gdd
 
-	let d = escape (cwd, ' ')
-	call s:ReadDir (d, s:treeExplHidden, "")
+	"let d = escape (cwd, ' ')
+	"call s:ReadDir (d, s:treeExplHidden, "")
+	call s:ReadDir (cwd, s:treeExplHidden, "")
 
 	let @f = "\n"
 	normal G
@@ -161,6 +162,7 @@ endfunction " >>>
 function! s:ReadDir(dir, hidden, prevline) " <<<
 	let olddir = getcwd ()
 	execute "lcd " . escape (a:dir, ' ')
+	"execute "lcd " . a:dir
 
 	let save_f = @f
 
@@ -314,8 +316,9 @@ function! s:Activate() " <<<
 	if curfile =~ '/$' " dir
 		setlocal modifiable
 		normal ddk
-		let d = escape (curfile, ' ')
-	  call s:ReadDir (d, s:treeExplHidden, l)
+		"let d = escape (curfile, ' ')
+	  "call s:ReadDir (d, s:treeExplHidden, l)
+	  call s:ReadDir (curfile, s:treeExplHidden, l)
 		setlocal nomodifiable
 		exec (":" . ln)
 
