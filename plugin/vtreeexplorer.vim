@@ -1,107 +1,89 @@
-" Has this already been loaded?
+"" vtreeexplorer.vim - tree-like file system explorer for vim
+""
+"" author: TS URban
+""
+"" instructions:
+""   1 - source this file or put in your plugin dir
+""   2 - :VTreeExlorer
+""   3 - help at top of screen
+
+"" prevent multiple loading unless developing with g:treeExplDebug
 if exists("vloaded_tree_explorer") && !exists("g:treeExplDebug")
 	finish
 endif
 let vloaded_tree_explorer=1
 
-" TODO - set foldopen option
-
-" Line continuation used here
+"" line continuation used here ??
 let s:cpo_save = &cpo
 set cpo&vim
 
-" explorer window is created with vertical split if needed
-let s:treeExplVertical = (exists("g:treeExplVertical")) ? g:treeExplVertical : 0
+"" chars to escape in file/dir names
+let s:escape_chars =  " `|\"~'"
 
-" explorer windows initial size
-let s:treeExplWinSize = (exists("g:treeExplWinSize")) ? g:treeExplWinSize : 20
-
-" Create commands
+"" create commands
 command! -n=? -complete=dir VTreeExplore :call s:TreeExplorer(0, '<a>')
 command! -n=? -complete=dir VSTreeExplore :call s:TreeExplorer(1, '<a>')
 
-" Start the explorer using the preferences from the global variables
-function! s:TreeExplorer(split, start_dir) " <<<
-	if a:start_dir != ""
-		let fname=a:start_dir
-	else
-		let fname = expand("%:p:h")
-	endif
-	if fname == ""
-		let fname = getcwd()
-	endif
+"" TreeExplorer() - set up explorer window
+function! s:TreeExplorer(split, start) " <<<
 
-	let s:escape_chars =  ' `|"~'
-	let s:escape_chars = s:escape_chars . "'"
+	" dir to start in from arg, buff dir, or pwd
+	let fname = (a:start != "") ? a:start : expand ("%:p:h")
+	let fname = (fname != "") ? fname : getcwd ()
 
-	" Create a variable to use if splitting vertically
-	let splitMode = ""
-	if s:treeExplVertical == 1
-		let splitMode = "vertical"
-	endif
+	" win specific vars from globals if they exist - allows multiple invocations
+	let w:splitMode = (exists("g:treeExplVertical")) ? "vertical " : ""
+	let w:splitSize = (exists("g:treeExplWinSize")) ? g:treeExplWinSize : 20
+	let w:hidden_files = (exists("g:treeExplHidden")) ? 1 : 0
+	let w:dirsort = (exists("g:treeExplDirSort")) ? g:treeExplDirSort : 0
 
+	" new/edit buffer
 	if a:split || &modified
-		let cmd = splitMode . " " . s:treeExplWinSize . "new TreeExplorer"
+		let cmd = w:splitMode . w:splitSize . "new TreeExplorer"
 	else
 		let cmd = "e TreeExplorer"
 	endif
 	silent execute cmd
 
-	" show hidden files
-	let w:hidden_files = (exists("g:treeExplHidden")) ? 1 : 0
-
+	" throwaway buffer options
 	setlocal noswapfile
 	setlocal buftype=nowrite
-	setlocal bufhidden=delete
+	setlocal bufhidden=delete " d
 	setlocal nowrap
-
 	iabc <buffer>
 
-	"let w:longhelp = 1
-	let w:helplines = 4 " so we get long help to start
-
+	" setup folding for markers that will be inserted
 	setlocal foldmethod=marker
 	setlocal foldtext=substitute(getline(v:foldstart),'.{{{.*','','')
 	setlocal foldlevel=1
 
-  " Set up syntax highlighting
+	" init help to long version
+	let w:helplines = 14
+
+  " syntax highlighting
   if has("syntax") && exists("g:syntax_on") && !has("syntax_items")
-    syn match treeSynopsis    #^"[ -].*#
-    syn match treeDirectory   #\(^[^"][-| `]*\)\@<=[^-| `].*/#
-    syn match treeDirectory   "^\.\. (up a directory)$"
-		syn match treeParts       #!-- #
-		syn match treeParts       #`-- #
-		syn match treeParts       #!   #
-    syn match treeCurDir      #^/.*$# contains=treeFolds
-		syn match treeFolds       "{{{"
-		syn match treeFolds       "}}}"
-		syn match treeClass "[*=|]$" contained
-		" TODO - fix these
-		syn match treeExec  #\(^[^"][-| `]*\)\@<=[^-| `].*\*$# contains=treeClass
-		syn match treePipe  #\(^[^"][-| `]*\)\@<=[^-| `].*|$# contains=treeClass
-		syn match treeSock  #\(^[^"][-| `]*\)\@<=[^-| `].*=$# contains=treeClass
-		syn match treeLink  #[^-| `].* -> .*$# contains=treeFolds,treeParts
-		"syn match treeLink  #.* -> .*$# contains=treeFolds
+    syn match treeHlp  #^" .*#
+    syn match treeDir  "^\.\. (up a directory)$"
+		syn match treePrt  #[|`][- ][- ] #
+		syn match treeFld  "{{{"
+		syn match treeFld  "}}}"
+		syn match treeLnk  #[^-| `].* -> # contains=treeFld,treePrt
+    syn match treeDir  #.*/\([ {}]\{4\}\)*$# contains=treePrt,treeFld,treeLnk
+    syn match treeCWD  #^/.*$# contains=treeFld
 
-		hi def link treeParts       Normal
-
-		hi def link treeFolds       Ignore
-		hi def link treeClass       Ignore
-
-    hi def link treeSynopsis    Special
-    hi def link treeDirectory   Directory
-    hi def link treeCurDir      Statement
-
-		hi def link treeExec        Type
-		hi def link treeLink        Title
-		hi def link treePipe        String
-		hi def link treesock        Identifier
-
+		hi def link treePrt Normal
+		hi def link treeFld Ignore
+    hi def link treeHlp Special
+    hi def link treeDir Directory
+    hi def link treeCWD Statement
+		hi def link treeLnk Title
   endif
 
-	" set up mapping for this buffer
+	" for line continuation
   let cpo_save = &cpo
   set cpo&vim
+
+	" set up mappings and commands for this buffer
   nnoremap <buffer> <cr> :call <SID>Activate()<cr>
   nnoremap <buffer> o    :call <SID>Activate()<cr>
 	nnoremap <buffer> X    :call <SID>RecursiveExpand()<cr>
@@ -112,16 +94,21 @@ function! s:TreeExplorer(split, start_dir) " <<<
 	nnoremap <buffer> p    :call <SID>MoveParent()<cr>
 	nnoremap <buffer> r    :call <SID>RefreshDir()<cr>
   nnoremap <buffer> R    :call <SID>InitWithDir("")<cr>
-	nnoremap <buffer> a    :call <SID>ToggleHiddenFiles()<cr>
 	nnoremap <buffer> S    :call <SID>StartShell()<cr>
+	nnoremap <buffer> D    :call <SID>ToggleDirSort()<cr>
+	nnoremap <buffer> a    :call <SID>ToggleHiddenFiles()<cr>
   nnoremap <buffer> ?    :call <SID>ToggleHelp()<cr>
-	nnoremap <buffer> t    :call <SID>Test()<cr>
-	command! -buffer -complete=dir -nargs=1 CD :call s:TreeCD('<a>')
-  let &cpo = cpo_save
 
-	call s:InitWithDir(fname)
+	command! -buffer -complete=dir -nargs=1 CD :call s:TreeCD('<a>')
+	command! -buffer -range -nargs=0 Yank :<line1>,<line2>y |
+				\ let @" = substitute (@", ' [{}]\{3\}', "", "g")
+
+  let &cpo = cpo_save " restore
+
+	call s:InitWithDir(fname) " load fname dir
 endfunction " >>>
 
+"" TreeCD() - change to dir from cmdline arg
 function! s:TreeCD(dir) " <<<
 	if isdirectory (a:dir)
 		call s:InitWithDir (a:dir)
@@ -130,17 +117,16 @@ function! s:TreeCD(dir) " <<<
 	endif
 endfunction " >>>
 
-" reload tree with dir
+"" InitWithDir() - reload tree with dir
 function! s:InitWithDir(dir) " <<<
 	if a:dir != ""
-		"execute "lcd " . escape (a:dir, ' `|"\'')
 		execute "lcd " . escape (a:dir, s:escape_chars)
 	endif
 	let cwd = getcwd ()
 
-	setlocal modifiable
-
-	silent! normal ggdG
+	" clear buffer
+	setlocal modifiable | silent! normal ggdG
+	setlocal nomodifiable
 
 	"insert header
 	call s:AddHeader()
@@ -148,77 +134,80 @@ function! s:InitWithDir(dir) " <<<
 
 	let save_f=@f
 
-	"insert parent dir unless we're at / for unix or L:\ for dos
-	if cwd == "/" || cwd =~ '^[^/]..$'
-		let @f="\n"
-	else
-		let @f=".. (up a directory)\n"
+	"insert parent link unless we're at / for unix or X:\ for dos
+	if cwd != "/" && cwd !~ '^[^/]..$'
+		let @f=".. (up a directory)"
 	endif
-	silent put f
+	let @f=@f . "\n" . cwd  . "/\n\n"
 
-	normal G
+	setlocal modifiable | silent put f | setlocal nomodifiable
 
-	call s:ReadDir (cwd, "")
+	normal Gk
 
-	let @f = "\n"
-	normal G
-	silent! put f
+	call s:ReadDir (line("."), cwd) " read dir
+
 	let @f=save_f
-
-	exec (":" . w:helplines)
-
-	setlocal nomodifiable
 endfunction " >>>
 
-" read contents of dir after current line with tree pieces and foldmarkers
-function! s:ReadDir(dir, prevline) " <<<
+"" ReadDir() -  read dir after current line with tree pieces and foldmarkers
+function! s:ReadDir(lpn,dir) " <<<
 	let olddir = getcwd ()
-	execute "lcd " . escape (a:dir, s:escape_chars)
 
-	let save_f = @f
+	let lps = getline (a:lpn)
 
-	let topdir = a:dir
-
-	if has("unix") == 0 " TODO - other non unix besides dos*?
-		let topdir = substitute (topdir, '\\', '/', "g")
+	if a:dir == ""
+		let dir = GetAbsPath2 (lpn, 0)
+		if w:firstdirline ! = lpn
+			echo "ERROR"
+			return
+		endif
+	else
+		let dir = a:dir
 	endif
-	let topdir = substitute (topdir, '/\?$', '/', "")
+
+	execute "lcd " . escape (dir, s:escape_chars)
+
+	" @l is used for first line, last line, and if dir sorting is off
+	let save_l = @l | let @l = ""
+
+	" @f and @d are used for file and dirs with dir sorting
+	if w:dirsort != 0
+		let save_d = @d | let @d = ""
+		let save_f = @f | let @f = ""
+	endif
+
+	" change dos path to look like unix path
+	if has("unix") == 0 " TODO ?
+		let dir = substitute (dir, '\\', '/', "g")
+	endif
+	let dir = substitute (dir, '/\?$', '/', "")
 	
+	" get dir contents
 	if w:hidden_files == 1
 		let dirlines = glob ('.*') . "\n" . glob ('*')
 	else
 		let dirlines = glob ('*')
 	endif
 
+	" if empty, don't change line
 	if dirlines == ""
-		let @f = (a:prevline == "") ? topdir : a:prevline
-		silent! put f
-		let @f = save_f
-		execute "lcd " . escape (olddir, s:escape_chars)
 		return
 	endif
 
-	if a:prevline != ""
-		let treeprt = substitute (a:prevline, '[^-| `].*', "", "")
-		let prevdir = substitute (a:prevline, '^[-| `]*', "", "")
-		let prevdir = substitute (prevdir, '[{} ]*$', "", "")
-		let foldprt = substitute (a:prevline, '.*' . prevdir, "", "")
+	let treeprt = substitute (lps, '[^-| `].*', "", "")
+	let pdirprt = substitute (lps, '^[-| `]*', "", "")
+	let pdirprt = substitute (pdirprt, '[{} ]*$', "", "")
+	let foldprt = substitute (lps, '.*' . pdirprt, "", "")
 
-		let @f = treeprt . prevdir . ' {{{'
+	let @l = treeprt . pdirprt . ' {{{'
 
-		let treeprt = substitute (treeprt, '`-- ', '    ', "")
-		let treeprt = substitute (treeprt, '|-- ', '|   ', "")
-	else
-		let treeprt = ""
-		let prevdir = ""
-		let foldprt = ""
-		let @f = topdir . ' {{{'
-	endif
+	let treeprt = substitute (treeprt, '`-- ', '    ', "")
+	let treeprt = substitute (treeprt, '|-- ', '|   ', "")
 
+	" parse dir contents by '/'
 	let dirlines = substitute (dirlines, "\n", '/', "g")
 
-	" handle all dir entries but the last one
-	while dirlines =~ '/'
+	while strlen (dirlines) > 0
 		let curdir = substitute (dirlines, '/.*', "", "")
 		let dirlines = substitute (dirlines, '[^/]*/\?', "", "")
 
@@ -231,10 +220,10 @@ function! s:ReadDir(dir, prevline) " <<<
 			let curdir = curdir . ' -> ' . linkedto
 		endif
 		if isdirectory (linkedto)
+			let isdir = 1
 			let curdir = curdir . '/'
-		"elseif executable ('./' . curdir)
-			" this is really slow, wish there was a -x operator or stat()
-			"let curdir = curdir . '*'
+		else
+			let isdir = 0
 		endif
 
 		" escape leading characters confused with tree parts
@@ -242,30 +231,62 @@ function! s:ReadDir(dir, prevline) " <<<
 			let curdir = '\' . curdir
 		endif
 
-		let @f = @f . "\n" . treeprt . '|-- ' . curdir
+		if w:dirsort != 0
+			if isdir == 1
+				let @d = @d . "\n" . treeprt . '|-- ' . curdir
+			else
+				let @f = @f . "\n" . treeprt . '|-- ' . curdir
+			endif
+		else
+			let @l = @l . "\n" . treeprt . '|-- ' . curdir
+		endif
 	endwhile
 
-	" handle last entry
-	let linkedto = resolve (dirlines)
-	if linkedto != dirlines
-		let dirlines = dirlines . ' -> ' . linkedto
-	endif
-	if isdirectory (dirlines)
-		let dirlines = dirlines . '/'
-	endif
-	if dirlines =~ '^[-| `]'
-		let dirlines = '\' . dirlines
+	if w:dirsort == 1
+		let @l = @l .  @d . @f . "\n"
+	elseif w:dirsort == -1
+		let @l = @l .  @f . @d . "\n"
+	else
+		let @l = @l . "\n"
 	endif
 
-	let @f = @f . "\n" . treeprt . '`-- ' . dirlines . foldprt . " }}}\n"
+	exec (":" . a:lpn)
 
-	silent! put f
+	" TODO handle fold open v fold closed
+	setlocal modifiable
+	silent normal ddk
+	silent put l
+	setlocal nomodifiable
 
-	let @f = save_f
+	" make sure fold is open so we don't delete the whole thing
+	"if foldclosed (line (".")) != -1
+	if foldclosed (a:lpn) != -1
+		foldopen
+	endif
+
+	normal! `]
+
+	" change last tree part to the final leaf marking, add final fold mark
+	let @l = getline(".")
+	let @l = substitute (@l, '|-- ', '`-- ', "")
+	let @l = @l . foldprt . " }}}\n"
+
+	setlocal modifiable | silent normal dd
+	silent put! l | setlocal nomodifiable
+
+	" restore registers
+	let @l = save_l
+	if w:dirsort != 0
+		let @d = save_d
+		let @f = save_f
+	endif
+
+	exec (":" . a:lpn)
+
 	execute "lcd " . escape (olddir, s:escape_chars)
 endfunction " >>>
 
-" cd up (if possible)
+"" ChdirUp() -  cd up (if possible)
 function! s:ChdirUp() " <<<
 	let cwd = getcwd()
 	if cwd == "/" || cwd =~ '^[^/]..$'
@@ -275,7 +296,7 @@ function! s:ChdirUp() " <<<
 	endif
 endfunction " >>>
 
-" move cursor to parent dir
+"" MoveParent() - move cursor to parent dir
 function! s:MoveParent() " <<<
 	let ln = line(".")
 	call s:GetAbsPath2 (ln, 1)
@@ -286,7 +307,7 @@ function! s:MoveParent() " <<<
 	endif
 endfunction " >>>
 
-" change top dir
+"" ChangeTop() - change top dir to cursor dir
 function! s:ChangeTop() " <<<
 	let ln = line(".")
   let l = getline(ln)
@@ -307,13 +328,10 @@ function! s:ChangeTop() " <<<
 		let curfile = substitute (curfile, '[^/]*$', "", "")
 	endif
 	call s:InitWithDir (curfile)
-
 endfunction " >>>
 
-" expand recursively
+"" RecursiveExpand() - expand cursor dir recursively
 function! s:RecursiveExpand() " <<<
-	setlocal modifiable
-
 	echo "recursively expanding, this might take a while (CTRL-C to stop)"
 
 	let curfile = s:GetAbsPath2(line("."), 0)
@@ -338,17 +356,11 @@ function! s:RecursiveExpand() " <<<
 	endif
 
 	if l !~ ' {{{$' " dir not open
-		exec (":" . init_ln)
-		silent normal ddk
-		call s:ReadDir (curfile, l)
+		call s:ReadDir (init_ln, curfile)
+
 		if getline (init_ln) !~ ' {{{$' " dir still not open (empty)
-			setlocal nomodifiable
 			echo "expansion done"
 			return
-		else
-			if foldclosed (init_ln) != -1
-				foldopen
-			endif
 		endif
 	endif
 
@@ -376,22 +388,16 @@ function! s:RecursiveExpand() " <<<
 
 		let curfile = s:GetAbsPath2(tln, 0)
 
-		exec (":" . tln)
-		silent normal ddk
-		call s:ReadDir (curfile, tl)
-		exec (":" . tln)
-		if getline(tln) =~ ' {{{$' && foldclosed (tln) != -1
-			foldopen
-		endif
+		call s:ReadDir (tln, curfile)
+
 		let l = getline (ln)
 	endwhile
 
-	setlocal nomodifiable
 	exec (":" . init_ln)
 	echo "expansion done"
 endfunction " >>>
 
-" open explorer on cursor dir
+"" OpenExplorer() - open file explorer on cursor dir
 function! s:OpenExplorer() " <<<
 	let curfile = s:GetAbsPath2 (line ("."), 0)
 
@@ -415,7 +421,7 @@ function! s:OpenExplorer() " <<<
 
 endfunction " >>>
 
-" open dir, file, or parent dir
+"" Activate() - (un)fold read dirs, read unread dirs, open files, cd .. on ..
 function! s:Activate() " <<<
 	let ln = line(".")
   let l = getline(ln)
@@ -437,7 +443,6 @@ function! s:Activate() " <<<
 	endif
 
 	" on top, no folds, or not on tree
-	"if l =~ '^/'
 	if l !~ '^[-| `]'
 		return
 	endif
@@ -446,15 +451,7 @@ function! s:Activate() " <<<
 	let curfile = s:GetAbsPath2 (ln, 0)
 
 	if curfile =~ '/$' " dir
-		setlocal modifiable
-		silent normal ddk
-	  call s:ReadDir (curfile, l)
-		setlocal nomodifiable
-		exec (":" . ln)
-
-		if getline(ln) =~ ' {{{$' && foldclosed(ln) != -1
-				foldopen
-		endif
+	  call s:ReadDir (ln, curfile)
 		return
 	else " file
 		let f = escape (curfile, s:escape_chars)
@@ -469,17 +466,7 @@ function! s:Activate() " <<<
 	endif
 endfunction " >>>
 
-function! s:Test() " <<<
-	let ln = line(".")
-	let curfile  = s:GetAbsPath2(ln, 0)
-	let ln2 = w:firstdirline
-	let curfile2 = s:GetAbsPath2(ln, 1)
-	let ln3 = w:firstdirline
-	"echo "0 opt: " . curfile . ", " . ln2 . "; 1 opt " . curfile2 . ", " . ln3
-	echo "foldclosed " . ln . " = " . foldclosed (ln) . ", " . ln2 . " = " .  foldclosed (ln2)
-endfunction " >>>
-
-" refresh curren dir
+"" RefreshDir() - refresh current dir
 function! s:RefreshDir() " <<<
 	let curfile = s:GetAbsPath2(line("."), 0)
 
@@ -491,54 +478,69 @@ function! s:RefreshDir() " <<<
 		return
 	endif
 
+	let save_l = @l
+
 	" remove file name, if any
 	let curfile = substitute (curfile, '[^/]*$', "", "")
 
-	let l = getline (init_ln)
-
-	setlocal modifiable
+	let @l = getline (init_ln)
 
 	" if there is no fold, just do normal ReadDir, and return
-	if l !~ ' {{{'
-		exec (":" . init_ln)
-		silent normal ddk
-		call s:ReadDir (curfile, l)
-		if getline (init_ln) =~ ' {{{$' && foldclosed (init_ln) != -1
-			foldopen
-		endif
-		setlocal nomodifiable
+	if @l !~ ' {{{$'
+		call s:ReadDir (init_ln, curfile)
 		return
 	endif
 
 	" TODO factor
+
 	if foldclosed(init_ln) == -1
 		foldclose
 	endif
 
 	" remove one foldlevel from line
-	let l = substitute (l, ' {{{$', "", "")
+	let @l = substitute (@l, ' {{{$', "", "")
 
 	exec (":" . init_ln)
-	silent normal ddk
-	call s:ReadDir (curfile, l)
-	if getline (init_ln) =~ ' {{{$' && foldclosed (init_ln) != -1
-		foldopen
-	endif
 
+	setlocal modifiable
+	silent normal ddk
+	silent put l
 	setlocal nomodifiable
+
+	call s:ReadDir (init_ln, curfile)
+
+	let @l = save_l
 endfunction " >>>
 
-" toggle hidden files
+"" ToggleHiddenFiles() - toggle hidden files
 function! s:ToggleHiddenFiles() " <<<
 	let w:hidden_files = w:hidden_files ? 0 : 1
-	let hiddenStr = w:hidden_files ? "on" : "off"
-	let hiddenStr = "hidden files now " . hiddenStr
-	echo hiddenStr
+	let msg = w:hidden_files ? "on" : "off"
+	let msg = "hidden files now = " . msg
+	echo msg
 	call s:UpdateHeader ()
 	call s:RefreshDir()
 endfunction " >>>
 
-" start shell in dir
+" toggle dir sorting
+function! s:ToggleDirSort() " <<<
+	if w:dirsort == 0
+		let w:dirsort = 1
+		let msg = "dirs first"
+	elseif w:dirsort > 0
+		let w:dirsort = -1
+		let msg = "dirs last"
+	else
+		let w:dirsort = 0
+		let msg = "off"
+	endif
+	let msg = "dirs sorting now = " . msg
+	echo msg
+	call s:UpdateHeader ()
+	call s:RefreshDir()
+endfunction " >>>
+
+"" StartShell() - start shell in cursor dir
 function! s:StartShell() " <<<
 	let ln = line(".")
 
@@ -556,7 +558,8 @@ function! s:StartShell() " <<<
 	execute "lcd " . escape (prevdir, s:escape_chars)
 endfunction " >>>
 
-" get absolute parent path of file or dir in line ln, set w:firstdirline
+"" GetAbsPath2() -  get absolute path at line ln, set w:firstdirline,
+""  - if ignore_current is 1, don't set line to current line when on a dir
 function! s:GetAbsPath2(ln,ignore_current) " <<<
 	let lnum = a:ln
 	let l = getline(lnum)
@@ -573,13 +576,10 @@ function! s:GetAbsPath2(ln,ignore_current) " <<<
 	" strip file
 	let curfile = substitute (l,'^[-| `]*',"","") " remove tree parts
 	let curfile = substitute (curfile,'[ {}]*$',"",'') " remove fold marks
-	let curfile = substitute (curfile,'[*=@|]$',"","") " remove file class
+	"let curfile = substitute (curfile,'[*=@|]$',"","") " remove file class
 
 	" remove leading escape
-	"if curfile =~ '^\\[^`]'
-	"if curfile =~ '^\\[^`|]'
-		let curfile = substitute (curfile,'^\\', "", "")
-	"endif
+	let curfile = substitute (curfile,'^\\', "", "")
 
 	if curfile =~ '/$' && a:ignore_current == 0
 		let wasdir = 1
@@ -613,10 +613,7 @@ function! s:GetAbsPath2(ln,ignore_current) " <<<
 				let sd = substitute (sd, ' -> .*','/',"") " replace link to with /
 
 				" remove leading escape
-				"if sd =~ '^\\[^`]'
-				"if sd =~ '^\\[^`|]'
-					let sd = substitute (sd,'^\\', "", "")
-				"endif
+				let sd = substitute (sd,'^\\', "", "")
 
 				let dir = sd . dir
 				continue
@@ -627,67 +624,75 @@ function! s:GetAbsPath2(ln,ignore_current) " <<<
 	return curfile
 endfunction " >>>
 
-" toggle between long and short help
+"" ToggleHelp() - toggle between long and short help
 function! s:ToggleHelp() " <<<
-	if exists ("w:helplines") && w:helplines <= 4
-		let w:helplines = 15
-	else
-		let w:helplines = 4
-	endif
+	let w:helplines = (w:helplines <= 4) ? 6 : 0
 	call s:UpdateHeader ()
 endfunction " >>>
 
-" Update the header
+"" UpdateHeader() - update the header
 function! s:UpdateHeader() " <<<
-	setlocal modifiable
 	let oldRep=&report
 	set report=10000
-	" Save position
 	normal! mt
+
   " Remove old header
   0
-  silent! 1,/^" ?/ d _
-  " Add new header
+	setlocal modifiable | silent! 1,/^" ?/ d _ | setlocal nomodifiable
+
   call s:AddHeader()
-  " Go back where we came from if possible
+
+	" return to previous mark
   0
   if line("'t") != 0
     normal! `t
   endif
 
   let &report=oldRep
-  setlocal nomodified
-	setlocal nomodifiable
 endfunction " >>>
 
-" Add the header with help information
+"" - AddHeader() -  add the header with help information
 function! s:AddHeader() " <<<
-    let save_f=@f
-    1
-		let ln = 3
-		if w:helplines > 4
-      let ln=ln+1 | let @f=   "\" <enter> = same as 'o' below\n"
-      let ln=ln+1 | let @f=@f."\" o       = (file) open in another window\n"
-      let ln=ln+1 | let @f=@f."\" o       = (dir) toggle dir fold or load dir\n"
-			let ln=ln+1 | let @f=@f."\" X       = recursive expand cursor dir\n"
-			let ln=ln+1 | let @f=@f."\" E       = open Explorer on cursor dir\n"
-			let ln=ln+1 | let @f=@f."\" C       = chdir top of tree to cursor dir\n"
-			let ln=ln+1 | let @f=@f."\" H       = chdir top of tree to home dir\n"
-			let ln=ln+1 | let @f=@f."\" u       = chdir top of tree to parent dir\n"
-			let ln=ln+1 | let @f=@f."\" :CD dir = chdir top of tree to <dir>\n"
-			let ln=ln+1 | let @f=@f."\" p       = move cursor to parent dir\n"
-			let ln=ln+1 | let @f=@f."\" r       = refresh cursor dir\n"
-			let ln=ln+1 | let @f=@f."\" R       = refresh top dir\n"
-			let ln=ln+1 | let @f=@f."\" a       = display hidden files (now  "
-						\ . ((w:hidden_files) ? "on)\n" : "off)\n")
-			let ln=ln+1 | let @f=@f."\" S       = start a shell in cursor dir\n"
-			let ln=ln+1 | let @f=@f."\" ?       = toggle long help\n"
-		else
-			let ln=ln+1 | let @f="\" ? : toggle long help\n"
-		endif
-		let w:helplines = ln
-    silent put! f
-    let @f=save_f
+	if w:dirsort == 0
+		let dt = "off)\n"
+	elseif w:dirsort == 1
+		let dt = "dirs first)\n"
+	else
+		let dt = "dirs last)\n"
+	endif
+
+	let save_f=@f
+	1
+	let ln = 3
+	if w:helplines > 4
+		let ln=ln+1 | let @f=   "\" <ret> = same as 'o' below\n"
+		let ln=ln+1 | let @f=@f."\" o     = (file) open in another window\n"
+		let ln=ln+1 | let @f=@f."\" o     = (dir) toggle dir fold or load dir\n"
+		let ln=ln+1 | let @f=@f."\" X     = recursive expand cursor dir\n"
+		let ln=ln+1 | let @f=@f."\" E     = open Explorer on cursor dir\n"
+		let ln=ln+1 | let @f=@f."\" C     = chdir top of tree to cursor dir\n"
+		let ln=ln+1 | let @f=@f."\" H     = chdir top of tree to home dir\n"
+		let ln=ln+1 | let @f=@f."\" u     = chdir top of tree to parent dir\n"
+		let ln=ln+1 | let @f=@f."\" :CD d = chdir top of tree to dir <d>\n"
+		let ln=ln+1 | let @f=@f."\" p     = move cursor to parent dir\n"
+		let ln=ln+1 | let @f=@f."\" r     = refresh cursor dir\n"
+		let ln=ln+1 | let @f=@f."\" R     = refresh top dir\n"
+		let ln=ln+1 | let @f=@f."\" S     = start a shell in cursor dir\n"
+		let ln=ln+1 | let @f=@f."\" :Yank = yank <range> lines withoug fold marks\n"
+		let ln=ln+1 | let @f=@f."\" D     = toggle dir sort (now = " . dt
+		let ln=ln+1 | let @f=@f."\" a     = toggle hidden files (now = "
+					\ . ((w:hidden_files) ? "on)\n" : "off)\n")
+		let ln=ln+1 | let @f=@f."\" ?     = toggle long help\n"
+	else
+		let ln=ln+1 | let @f="\" ? : toggle long help\n"
+	endif
+	let w:helplines = ln
+
+	setlocal modifiable | silent put! f | setlocal nomodifiable
+
+	let @f=save_f
 endfunction " >>>
+
+let &cpo = s:cpo_save
 
 " vim: set ts=2 sw=2 foldmethod=marker foldmarker=<<<,>>> foldlevel=2 :
