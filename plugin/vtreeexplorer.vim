@@ -31,7 +31,7 @@ function! s:TreeExplorer(split, start_dir) " <<<
 		let fname = getcwd()
 	endif
 
-	let s:escape_chars =  ' `|"'
+	let s:escape_chars =  ' `|"~'
 	let s:escape_chars = s:escape_chars . "'"
 
 	" Create a variable to use if splitting vertically
@@ -140,7 +140,7 @@ function! s:InitWithDir(dir) " <<<
 
 	setlocal modifiable
 
-	silent normal ggdG
+	silent! normal ggdG
 
 	"insert header
 	call s:AddHeader()
@@ -148,11 +148,11 @@ function! s:InitWithDir(dir) " <<<
 
 	let save_f=@f
 
-	"insert parent dir
-	if cwd != "/"
-		let @f=".. (up a directory)\n"
-	else
+	"insert parent dir unless we're at / for unix or L:\ for dos
+	if cwd == "/" || cwd =~ '^[^/]..$'
 		let @f="\n"
+	else
+		let @f=".. (up a directory)\n"
 	endif
 	silent put f
 
@@ -162,7 +162,7 @@ function! s:InitWithDir(dir) " <<<
 
 	let @f = "\n"
 	normal G
-	silent put f
+	silent! put f
 	let @f=save_f
 
 	exec (":" . w:helplines)
@@ -192,7 +192,7 @@ function! s:ReadDir(dir, prevline) " <<<
 
 	if dirlines == ""
 		let @f = (a:prevline == "") ? topdir : a:prevline
-		silent put f
+		silent! put f
 		let @f = save_f
 		execute "lcd " . escape (olddir, s:escape_chars)
 		return
@@ -259,7 +259,7 @@ function! s:ReadDir(dir, prevline) " <<<
 
 	let @f = @f . "\n" . treeprt . '`-- ' . dirlines . foldprt . " }}}\n"
 
-	silent put f
+	silent! put f
 
 	let @f = save_f
 	execute "lcd " . escape (olddir, s:escape_chars)
@@ -267,7 +267,8 @@ endfunction " >>>
 
 " cd up (if possible)
 function! s:ChdirUp() " <<<
-	if getcwd() == "/"
+	let cwd = getcwd()
+	if cwd == "/" || cwd =~ '^[^/]..$'
 		echo "already at top dir"
 	else
 		call s:InitWithDir("..")
@@ -338,7 +339,7 @@ function! s:RecursiveExpand() " <<<
 
 	if l !~ ' {{{$' " dir not open
 		exec (":" . init_ln)
-		normal ddk
+		silent normal ddk
 		call s:ReadDir (curfile, l)
 		if getline (init_ln) !~ ' {{{$' " dir still not open (empty)
 			setlocal nomodifiable
@@ -356,7 +357,6 @@ function! s:RecursiveExpand() " <<<
 	let l = getline (ln)
 
 	while init_ind < (match (l, '[^-| `]') / 4)
-		"normal j
 		let tl = l
 		let tln = ln
 		let ln = ln + 1
@@ -377,7 +377,7 @@ function! s:RecursiveExpand() " <<<
 		let curfile = s:GetAbsPath2(tln, 0)
 
 		exec (":" . tln)
-		normal ddk
+		silent normal ddk
 		call s:ReadDir (curfile, tl)
 		exec (":" . tln)
 		if getline(tln) =~ ' {{{$' && foldclosed (tln) != -1
@@ -426,7 +426,7 @@ function! s:Activate() " <<<
     return
   endif
 
-	" directory, loaded, toggle folded state
+	" directory loaded, toggle folded state
 	if l =~ ' {{{$'
 		if foldclosed(ln) == -1
 			foldclose
@@ -436,8 +436,9 @@ function! s:Activate() " <<<
 		return
 	endif
 
-	" on top, no folds
-	if l =~ '^/'
+	" on top, no folds, or not on tree
+	"if l =~ '^/'
+	if l !~ '^[-| `]'
 		return
 	endif
 
@@ -446,7 +447,7 @@ function! s:Activate() " <<<
 
 	if curfile =~ '/$' " dir
 		setlocal modifiable
-		normal ddk
+		silent normal ddk
 	  call s:ReadDir (curfile, l)
 		setlocal nomodifiable
 		exec (":" . ln)
@@ -495,17 +496,17 @@ function! s:RefreshDir() " <<<
 
 	let l = getline (init_ln)
 
-	set modifiable
+	setlocal modifiable
 
 	" if there is no fold, just do normal ReadDir, and return
 	if l !~ ' {{{'
 		exec (":" . init_ln)
-		normal ddk
+		silent normal ddk
 		call s:ReadDir (curfile, l)
 		if getline (init_ln) =~ ' {{{$' && foldclosed (init_ln) != -1
 			foldopen
 		endif
-		set nomodifiable
+		setlocal nomodifiable
 		return
 	endif
 
@@ -518,13 +519,13 @@ function! s:RefreshDir() " <<<
 	let l = substitute (l, ' {{{$', "", "")
 
 	exec (":" . init_ln)
-	normal ddk
+	silent normal ddk
 	call s:ReadDir (curfile, l)
 	if getline (init_ln) =~ ' {{{$' && foldclosed (init_ln) != -1
 		foldopen
 	endif
 
-	set nomodifiable
+	setlocal nomodifiable
 endfunction " >>>
 
 " toggle hidden files
@@ -533,6 +534,7 @@ function! s:ToggleHiddenFiles() " <<<
 	let hiddenStr = w:hidden_files ? "on" : "off"
 	let hiddenStr = "hidden files now " . hiddenStr
 	echo hiddenStr
+	call s:UpdateHeader ()
 	call s:RefreshDir()
 endfunction " >>>
 
@@ -632,20 +634,19 @@ function! s:ToggleHelp() " <<<
 	else
 		let w:helplines = 4
 	endif
-	setlocal modifiable
 	call s:UpdateHeader ()
-	setlocal nomodifiable
 endfunction " >>>
 
 " Update the header
 function! s:UpdateHeader() " <<<
+	setlocal modifiable
 	let oldRep=&report
 	set report=10000
 	" Save position
 	normal! mt
   " Remove old header
   0
-  1,/^" ?/ d _
+  silent! 1,/^" ?/ d _
   " Add new header
   call s:AddHeader()
   " Go back where we came from if possible
@@ -656,6 +657,7 @@ function! s:UpdateHeader() " <<<
 
   let &report=oldRep
   setlocal nomodified
+	setlocal nomodifiable
 endfunction " >>>
 
 " Add the header with help information
@@ -676,7 +678,8 @@ function! s:AddHeader() " <<<
 			let ln=ln+1 | let @f=@f."\" p       = move cursor to parent dir\n"
 			let ln=ln+1 | let @f=@f."\" r       = refresh cursor dir\n"
 			let ln=ln+1 | let @f=@f."\" R       = refresh top dir\n"
-			let ln=ln+1 | let @f=@f."\" a       = toggle hidden file display\n"
+			let ln=ln+1 | let @f=@f."\" a       = display hidden files (now  "
+						\ . ((w:hidden_files) ? "on)\n" : "off)\n")
 			let ln=ln+1 | let @f=@f."\" S       = start a shell in cursor dir\n"
 			let ln=ln+1 | let @f=@f."\" ?       = toggle long help\n"
 		else
