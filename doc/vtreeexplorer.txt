@@ -1,6 +1,6 @@
 *vtreeexplorer.txt*	Vim Tree Explorer		April 5, 2002
 
-Authors:  T. Scott Urban  <tsurban@HORMELattbi.com>
+Authors:  T. Scott Urban  <tsurban@HORMELcomcast.net>
 
 	  (remove HORMEL from my email first)
 

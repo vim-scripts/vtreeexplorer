@@ -1,11 +1,11 @@
-"" File: vtreeexplorer.vim
+"" File:        vtreeexplorer.vim
 "" Description: tree-like file system explorer for vim
-"" Version: $Revision: 1.19 $ $Date: 2003/01/26 17:02:08 $
-"" Author: TS Urban (tsurban@HORMELattbi.com)
-""   (remove HORMEL from my email first)
+"" Version:     $Revision: 1.20 $ $Date: 2004/12/30 18:28:31 $
+"" Author:      TS Urban (tsurban@HORMELcomcast.net)
+""              (remove HORMEL from my email first)
 ""
 "" Instructions:
-""   1 - source this file or put in your plugin dir
+""   1 - source this file or put in your plugin directory
 ""   2 - :VTreeExlorer or :VSTreeExplore
 ""   3 - help at top of screen
 ""   4 - this script comes with a help text that integrates with the vim help
@@ -39,6 +39,9 @@ set cpo&vim
 "" create commands
 command! -n=? -complete=dir VTreeExplore :call s:TreeExplorer(0, '<a>')
 command! -n=? -complete=dir VSTreeExplore :call s:TreeExplorer(1, '<a>')
+
+"" support sessions
+autocmd BufNewFile TreeExplorer VTreeExplore
 
 "" TreeExplorer() - set up explorer window
 function! s:TreeExplorer(split, start) " <<<
