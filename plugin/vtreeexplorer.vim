@@ -31,19 +31,25 @@ function! s:TreeExplorer(split, start) " <<<
 	let fname = (a:start != "") ? a:start : expand ("%:p:h")
 	let fname = (fname != "") ? fname : getcwd ()
 
-	" win specific vars from globals if they exist - allows multiple invocations
-	let w:splitMode = (exists("g:treeExplVertical")) ? "vertical " : ""
-	let w:splitSize = (exists("g:treeExplWinSize")) ? g:treeExplWinSize : 20
-	let w:hidden_files = (exists("g:treeExplHidden")) ? 1 : 0
-	let w:dirsort = (exists("g:treeExplDirSort")) ? g:treeExplDirSort : 0
+	let splitMode = (exists("g:treeExplVertical")) ? "vertical " : ""
+	let splitSize = (exists("g:treeExplWinSize")) ? g:treeExplWinSize : 20
 
 	" new/edit buffer
 	if a:split || &modified
-		let cmd = w:splitMode . w:splitSize . "new TreeExplorer"
+		let cmd = splitMode . splitSize . "new TreeExplorer"
 	else
 		let cmd = "e TreeExplorer"
 	endif
 	silent execute cmd
+
+	" win specific vars from globals if they exist - allows multiple invocations
+	let w:hidden_files = (exists("g:treeExplHidden")) ? 1 : 0
+	let w:dirsort = (exists("g:treeExplDirSort")) ? g:treeExplDirSort : 0
+	if w:dirsort < -1 || w:dirsort > 1
+		let w:dirsort = 0
+	endif
+	" init help to short version
+	let w:helplines = 1
 
 	" throwaway buffer options
 	setlocal noswapfile
@@ -56,9 +62,6 @@ function! s:TreeExplorer(split, start) " <<<
 	setlocal foldmethod=marker
 	setlocal foldtext=substitute(getline(v:foldstart),'.{{{.*','','')
 	setlocal foldlevel=1
-
-	" init help to long version
-	let w:helplines = 14
 
   " syntax highlighting
   if has("syntax") && exists("g:syntax_on") && !has("syntax_items")
@@ -80,7 +83,7 @@ function! s:TreeExplorer(split, start) " <<<
   endif
 
 	" for line continuation
-  let cpo_save = &cpo
+  let cpo_save1 = &cpo
   set cpo&vim
 
 	" set up mappings and commands for this buffer
@@ -103,7 +106,7 @@ function! s:TreeExplorer(split, start) " <<<
 	command! -buffer -range -nargs=0 Yank :<line1>,<line2>y |
 				\ let @" = substitute (@", ' [{}]\{3\}', "", "g")
 
-  let &cpo = cpo_save " restore
+  let &cpo = cpo_save1 " restore
 
 	call s:InitWithDir(fname) " load fname dir
 endfunction " >>>
