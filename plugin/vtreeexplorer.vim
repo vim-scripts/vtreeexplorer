@@ -31,6 +31,9 @@ function! s:TreeExplorer(split, start_dir) " <<<
 		let fname = getcwd()
 	endif
 
+	let s:escape_chars =  ' `|"'
+	let s:escape_chars = s:escape_chars . "'"
+
 	" Create a variable to use if splitting vertically
 	let splitMode = ""
 	if s:treeExplVertical == 1
@@ -101,7 +104,8 @@ function! s:TreeExplorer(split, start_dir) " <<<
   set cpo&vim
   nnoremap <buffer> <cr> :call <SID>Activate()<cr>
   nnoremap <buffer> o    :call <SID>Activate()<cr>
-	nnoremap <buffer> E    :call <SID>RecursiveExpand()<cr>
+	nnoremap <buffer> X    :call <SID>RecursiveExpand()<cr>
+	nnoremap <buffer> E    :call <SID>OpenExplorer()<cr>
   nnoremap <buffer> C    :call <SID>ChangeTop()<cr>
   nnoremap <buffer> H    :call <SID>InitWithDir($HOME)<cr>
 	nnoremap <buffer> u    :call <SID>ChdirUp()<cr>
@@ -112,15 +116,25 @@ function! s:TreeExplorer(split, start_dir) " <<<
 	nnoremap <buffer> S    :call <SID>StartShell()<cr>
   nnoremap <buffer> ?    :call <SID>ToggleHelp()<cr>
 	nnoremap <buffer> t    :call <SID>Test()<cr>
+	command! -buffer -complete=dir -nargs=1 CD :call s:TreeCD('<a>')
   let &cpo = cpo_save
 
 	call s:InitWithDir(fname)
 endfunction " >>>
 
+function! s:TreeCD(dir) " <<<
+	if isdirectory (a:dir)
+		call s:InitWithDir (a:dir)
+	else
+		echo "can not change to directory: " . a:dir
+	endif
+endfunction " >>>
+
 " reload tree with dir
 function! s:InitWithDir(dir) " <<<
 	if a:dir != ""
-		execute "lcd " . escape (a:dir, ' ')
+		"execute "lcd " . escape (a:dir, ' `|"\'')
+		execute "lcd " . escape (a:dir, s:escape_chars)
 	endif
 	let cwd = getcwd ()
 
@@ -159,14 +173,12 @@ endfunction " >>>
 " read contents of dir after current line with tree pieces and foldmarkers
 function! s:ReadDir(dir, prevline) " <<<
 	let olddir = getcwd ()
-	execute "lcd " . escape (a:dir, ' ')
+	execute "lcd " . escape (a:dir, s:escape_chars)
 
 	let save_f = @f
 
 	let topdir = a:dir
 
-	"let topdir = substitute (topdir, '/\?$', '/', "")
-	"let topdir = substitute (topdir, '\\\?/\?$', '/', "")
 	if has("unix") == 0 " TODO - other non unix besides dos*?
 		let topdir = substitute (topdir, '\\', '/', "g")
 	endif
@@ -182,10 +194,9 @@ function! s:ReadDir(dir, prevline) " <<<
 		let @f = (a:prevline == "") ? topdir : a:prevline
 		silent put f
 		let @f = save_f
-		execute "lcd " . escape (olddir, ' ')
+		execute "lcd " . escape (olddir, s:escape_chars)
 		return
 	endif
-
 
 	if a:prevline != ""
 		let treeprt = substitute (a:prevline, '[^-| `].*', "", "")
@@ -204,11 +215,12 @@ function! s:ReadDir(dir, prevline) " <<<
 		let @f = topdir . ' {{{'
 	endif
 
-	let dirlines = substitute (dirlines, "\n", '|', "g")
+	let dirlines = substitute (dirlines, "\n", '/', "g")
 
-	while dirlines =~ '|'
-		let curdir = substitute (dirlines, '|.*', "", "")
-		let dirlines = substitute (dirlines, '[^|]*|\?', "", "")
+	" handle all dir entries but the last one
+	while dirlines =~ '/'
+		let curdir = substitute (dirlines, '/.*', "", "")
+		let dirlines = substitute (dirlines, '[^/]*/\?', "", "")
 
 		if w:hidden_files == 1 && curdir =~ '^\.\.\?$'
 			continue
@@ -225,11 +237,24 @@ function! s:ReadDir(dir, prevline) " <<<
 			"let curdir = curdir . '*'
 		endif
 
+		" escape leading characters confused with tree parts
+		if curdir =~ '^[-| `]'
+			let curdir = '\' . curdir
+		endif
+
 		let @f = @f . "\n" . treeprt . '|-- ' . curdir
 	endwhile
 
+	" handle last entry
+	let linkedto = resolve (dirlines)
+	if linkedto != dirlines
+		let dirlines = dirlines . ' -> ' . linkedto
+	endif
 	if isdirectory (dirlines)
 		let dirlines = dirlines . '/'
+	endif
+	if dirlines =~ '^[-| `]'
+		let dirlines = '\' . dirlines
 	endif
 
 	let @f = @f . "\n" . treeprt . '`-- ' . dirlines . foldprt . " }}}\n"
@@ -237,7 +262,7 @@ function! s:ReadDir(dir, prevline) " <<<
 	silent put f
 
 	let @f = save_f
-	execute "lcd " . escape (olddir, ' ')
+	execute "lcd " . escape (olddir, s:escape_chars)
 endfunction " >>>
 
 " cd up (if possible)
@@ -266,7 +291,7 @@ function! s:ChangeTop() " <<<
   let l = getline(ln)
 
 	" on current top or non-tree line?
-	if l =~ '^/' || l =~ '^$' || l =~ '^"'
+	if l !~ '^[| `]'
 		return
 	endif
 
@@ -288,7 +313,7 @@ endfunction " >>>
 function! s:RecursiveExpand() " <<<
 	setlocal modifiable
 
-	echo "recursively expanding, this might take a while (<C-C>) to stop"
+	echo "recursively expanding, this might take a while (CTRL-C to stop)"
 
 	let curfile = s:GetAbsPath2(line("."), 0)
 
@@ -366,6 +391,30 @@ function! s:RecursiveExpand() " <<<
 	echo "expansion done"
 endfunction " >>>
 
+" open explorer on cursor dir
+function! s:OpenExplorer() " <<<
+	let curfile = s:GetAbsPath2 (line ("."), 0)
+
+	if w:firstdirline == 0
+		let curfile = getcwd ()
+	else
+		" remove file name, if any
+		let curfile = substitute (curfile, '[^/]*$', "", "")
+	endif
+
+	let curfile = escape (curfile, s:escape_chars)
+
+	let oldwin = winnr()
+	wincmd p
+	if oldwin == winnr() || &modified
+		wincmd p
+		exec ("new " . curfile)
+	else
+		exec ("edit " . curfile)
+	endif
+
+endfunction " >>>
+
 " open dir, file, or parent dir
 function! s:Activate() " <<<
 	let ln = line(".")
@@ -407,7 +456,7 @@ function! s:Activate() " <<<
 		endif
 		return
 	else " file
-		let f = escape (curfile, ' ')
+		let f = escape (curfile, s:escape_chars)
 		let oldwin = winnr()
 		wincmd p
 		if oldwin == winnr() || &modified
@@ -419,7 +468,7 @@ function! s:Activate() " <<<
 	endif
 endfunction " >>>
 
-function! s:Test()
+function! s:Test() " <<<
 	let ln = line(".")
 	let curfile  = s:GetAbsPath2(ln, 0)
 	let ln2 = w:firstdirline
@@ -427,10 +476,10 @@ function! s:Test()
 	let ln3 = w:firstdirline
 	"echo "0 opt: " . curfile . ", " . ln2 . "; 1 opt " . curfile2 . ", " . ln3
 	echo "foldclosed " . ln . " = " . foldclosed (ln) . ", " . ln2 . " = " .  foldclosed (ln2)
-endfunction
+endfunction " >>>
 
 " refresh curren dir
-function! s:RefreshDir()
+function! s:RefreshDir() " <<<
 	let curfile = s:GetAbsPath2(line("."), 0)
 
 	let init_ln = w:firstdirline
@@ -476,7 +525,7 @@ function! s:RefreshDir()
 	endif
 
 	set nomodifiable
-endfunction
+endfunction " >>>
 
 " toggle hidden files
 function! s:ToggleHiddenFiles() " <<<
@@ -500,9 +549,9 @@ function! s:StartShell() " <<<
 		let dir = substitute (curfile, '[^/]*$', "", "")
 	endif
 
-	execute "lcd " . escape (dir, ' ')
+	execute "lcd " . escape (dir, s:escape_chars)
 	shell
-	execute "lcd " . escape (prevdir, ' ')
+	execute "lcd " . escape (prevdir, s:escape_chars)
 endfunction " >>>
 
 " get absolute parent path of file or dir in line ln, set w:firstdirline
@@ -523,6 +572,12 @@ function! s:GetAbsPath2(ln,ignore_current) " <<<
 	let curfile = substitute (l,'^[-| `]*',"","") " remove tree parts
 	let curfile = substitute (curfile,'[ {}]*$',"",'') " remove fold marks
 	let curfile = substitute (curfile,'[*=@|]$',"","") " remove file class
+
+	" remove leading escape
+	"if curfile =~ '^\\[^`]'
+	"if curfile =~ '^\\[^`|]'
+		let curfile = substitute (curfile,'^\\', "", "")
+	"endif
 
 	if curfile =~ '/$' && a:ignore_current == 0
 		let wasdir = 1
@@ -554,6 +609,13 @@ function! s:GetAbsPath2(ln,ignore_current) " <<<
 				let sd = substitute (lp, '^[-| `]*',"","") " rm tree parts
 				let sd = substitute (sd, '[ {}]*$', "", "") " rm foldmarks
 				let sd = substitute (sd, ' -> .*','/',"") " replace link to with /
+
+				" remove leading escape
+				"if sd =~ '^\\[^`]'
+				"if sd =~ '^\\[^`|]'
+					let sd = substitute (sd,'^\\', "", "")
+				"endif
+
 				let dir = sd . dir
 				continue
 			endif
@@ -602,19 +664,21 @@ function! s:AddHeader() " <<<
     1
 		let ln = 3
 		if w:helplines > 4
-      let ln=ln+1 | let @f=     "\" <enter> : same as 'o' below\n"
-      let ln=ln+1 | let @f=@f . "\" o : (file) open in previous or new window\n"
-      let ln=ln+1 | let @f=@f . "\" o : (dir) toggle dir fold or load dir\n"
-			let ln=ln+1 | let @f=@f . "\" E : expand (recursive) dirs below cursor dir\n"
-			let ln=ln+1 | let @f=@f . "\" C : chdir - make cursor dir top of the tree\n"
-			let ln=ln+1 | let @f=@f . "\" H : chdir to home dir\n"
-			let ln=ln+1 | let @f=@f . "\" u : chdir to parent dir\n"
-			let ln=ln+1 | let @f=@f . "\" p : move cursor to parent dir\n"
-			let ln=ln+1 | let @f=@f . "\" r : refresh cursor dir\n"
-			let ln=ln+1 | let @f=@f . "\" R : refresh top dir\n"
-			let ln=ln+1 | let @f=@f . "\" a : toggle hidden file display\n"
-			let ln=ln+1 | let @f=@f . "\" S : start a shell in cursor dir\n"
-			let ln=ln+1 | let @f=@f . "\" ? : toggle long help\n"
+      let ln=ln+1 | let @f=   "\" <enter> = same as 'o' below\n"
+      let ln=ln+1 | let @f=@f."\" o       = (file) open in another window\n"
+      let ln=ln+1 | let @f=@f."\" o       = (dir) toggle dir fold or load dir\n"
+			let ln=ln+1 | let @f=@f."\" X       = recursive expand cursor dir\n"
+			let ln=ln+1 | let @f=@f."\" E       = open Explorer on cursor dir\n"
+			let ln=ln+1 | let @f=@f."\" C       = chdir top of tree to cursor dir\n"
+			let ln=ln+1 | let @f=@f."\" H       = chdir top of tree to home dir\n"
+			let ln=ln+1 | let @f=@f."\" u       = chdir top of tree to parent dir\n"
+			let ln=ln+1 | let @f=@f."\" :CD dir = chdir top of tree to <dir>\n"
+			let ln=ln+1 | let @f=@f."\" p       = move cursor to parent dir\n"
+			let ln=ln+1 | let @f=@f."\" r       = refresh cursor dir\n"
+			let ln=ln+1 | let @f=@f."\" R       = refresh top dir\n"
+			let ln=ln+1 | let @f=@f."\" a       = toggle hidden file display\n"
+			let ln=ln+1 | let @f=@f."\" S       = start a shell in cursor dir\n"
+			let ln=ln+1 | let @f=@f."\" ?       = toggle long help\n"
 		else
 			let ln=ln+1 | let @f="\" ? : toggle long help\n"
 		endif
