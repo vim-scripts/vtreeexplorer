@@ -1,17 +1,36 @@
-"" vtreeexplorer.vim - tree-like file system explorer for vim
+"" File: vtreeexplorer.vim
+"" Description: tree-like file system explorer for vim
+"" Version: $Revision: 1.17 $ $Date: 2002/05/30 18:20:53 $
+"" Author: TS Urban (tsurban@HORMELattbi.com)
+""   (remove HORMEL from my email first)
 ""
-"" author: TS URban
-""
-"" instructions:
+"" Instructions:
 ""   1 - source this file or put in your plugin dir
-""   2 - :VTreeExlorer
+""   2 - :VTreeExlorer or :VSTreeExplore
 ""   3 - help at top of screen
+""   4 - this script comes with a help text that integrates with the vim help
+""       system, put vtreeexplorer.txt in your ~/.vim/doc dir, then do
+""         :helptags ~/.vim/doc
+""
+"" Global Configuration Variables:
+""  treeExplVertical : split vertically when starting with VSTreeExplore
+""  treeExplWinSize  : window size (width or height) when doing VSTreeExplore
+""  treeExplHidden   : set to have explorer start with hidden files shown
+""  treeExplDirSort  : start explorer with desired directory sorting:
+""    0 : no directory sorting
+""    1 : directories sorting first
+""   -1 : directories sorting last
+""
+"" Todo:
+""   - global option for path separator
+""   - merge in patches for winmanager
+""   - +/- keymappings, etc
+""   - recursively collapse binding/function
 
 "" prevent multiple loading unless developing with g:treeExplDebug
 if exists("vloaded_tree_explorer") && !exists("g:treeExplDebug")
 	finish
-endif
-let vloaded_tree_explorer=1
+endif let vloaded_tree_explorer=1
 
 "" line continuation used here ??
 let s:cpo_save = &cpo
@@ -101,6 +120,7 @@ function! s:TreeExplorer(split, start) " <<<
 	nnoremap <buffer> D    :call <SID>ToggleDirSort()<cr>
 	nnoremap <buffer> a    :call <SID>ToggleHiddenFiles()<cr>
   nnoremap <buffer> ?    :call <SID>ToggleHelp()<cr>
+	nnoremap <buffer> <2-leftmouse> :call <SID>Activate()<cr>
 
 	command! -buffer -complete=dir -nargs=1 CD :call s:TreeCD('<a>')
 	command! -buffer -range -nargs=0 Yank :<line1>,<line2>y |
