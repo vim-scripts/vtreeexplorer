@@ -1,4 +1,4 @@
-*vtreeexplorer.txt*	Vim Tree Explorer		Jul 22, 2002
+*vtreeexplorer.txt*	Vim Tree Explorer		April 5, 2002
 
 Authors:  T. Scott Urban  <tsurban@HORMELattbi.com>
 

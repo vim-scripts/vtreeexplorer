@@ -33,12 +33,8 @@ if exists("vloaded_tree_explorer") && !exists("g:treeExplDebug")
 endif
 let vloaded_tree_explorer=1
 
-"" line continuation used here ??
 let s:cpo_save = &cpo
 set cpo&vim
-
-"" chars to escape in file/dir names
-let s:escape_chars =  " `|\"~'"
 
 "" create commands
 command! -n=? -complete=dir VTreeExplore :call s:TreeExplorer(0, '<a>')
@@ -51,23 +47,29 @@ function! s:TreeExplorer(split, start) " <<<
 	let fname = (a:start != "") ? a:start : expand ("%:p:h")
 	let fname = (fname != "") ? fname : getcwd ()
 
-	let splitMode = (exists("g:treeExplVertical")) ? "vertical " : ""
-	let splitSize = (exists("g:treeExplWinSize")) ? g:treeExplWinSize : 20
-
-	" new/edit buffer
+	" construct command to open window
 	if a:split || &modified
+		" if starting with split, get split parameters from globals
+		let splitMode = (exists("g:treeExplVertical")) ? "vertical " : ""
+		let splitSize = (exists("g:treeExplWinSize")) ? g:treeExplWinSize : 20
 		let cmd = splitMode . splitSize . "new TreeExplorer"
 	else
 		let cmd = "e TreeExplorer"
 	endif
 	silent execute cmd
 
-	" win specific vars from globals if they exist - allows multiple invocations
+	"" chars to escape in file/dir names - TODO '+' ?
+	let w:escape_chars =  " `|\"~'"
+
+	" win specific vars from globals if they exist
 	let w:hidden_files = (exists("g:treeExplHidden")) ? 1 : 0
 	let w:dirsort = (exists("g:treeExplDirSort")) ? g:treeExplDirSort : 0
 	if w:dirsort < -1 || w:dirsort > 1
 		let w:dirsort = 0
+		" TODO - neede?
+		let w:escape_chars = w:escape_chars . '+'
 	endif
+
 	" init help to short version
 	let w:helplines = 1
 
@@ -87,11 +89,15 @@ function! s:TreeExplorer(split, start) " <<<
   if has("syntax") && exists("g:syntax_on") && !has("syntax_items")
     syn match treeHlp  #^" .*#
     syn match treeDir  "^\.\. (up a directory)$"
-		syn match treePrt  #[|`][- ][- ] #
 		syn match treeFld  "{{{"
 		syn match treeFld  "}}}"
-		syn match treeLnk  #[^-| `].* -> # contains=treeFld,treePrt
-    syn match treeDir  #.*/\([ {}]\{4\}\)*$# contains=treePrt,treeFld,treeLnk
+		syn match treePrt  #|   #
+		syn match treePrt  #|-- #
+		syn match treePrt  #`-- #
+		"syn match treeLnk  #[^-| `].* -> # contains=treeFld,treePrt
+		syn match treeLnk  #[^-| `].* -> # contains=treeFld
+    "syn match treeDir  #.*/\([ {}]\{4\}\)*$# contains=treePrt,treeFld,treeLnk
+    syn match treeDir  #[^-| `].*/\([ {}]\{4\}\)*$# contains=treeFld,treeLnk
     syn match treeCWD  #^/.*$# contains=treeFld
 
 		hi def link treePrt Normal
@@ -144,7 +150,7 @@ endfunction " >>>
 "" InitWithDir() - reload tree with dir
 function! s:InitWithDir(dir) " <<<
 	if a:dir != ""
-		execute "lcd " . escape (a:dir, s:escape_chars)
+		execute "lcd " . escape (a:dir, w:escape_chars)
 	endif
 	let cwd = getcwd ()
 
@@ -189,7 +195,8 @@ function! s:ReadDir(lpn,dir) " <<<
 		let dir = a:dir
 	endif
 
-	execute "lcd " . escape (dir, s:escape_chars)
+	" TODO - error when dir no longer exists
+	execute "lcd " . escape (dir, w:escape_chars)
 
 	" @l is used for first line, last line, and if dir sorting is off
 	let save_l = @l | let @l = ""
@@ -307,7 +314,7 @@ function! s:ReadDir(lpn,dir) " <<<
 
 	exec (":" . a:lpn)
 
-	execute "lcd " . escape (olddir, s:escape_chars)
+	execute "lcd " . escape (olddir, w:escape_chars)
 endfunction " >>>
 
 "" ChdirUp() -  cd up (if possible)
@@ -392,6 +399,7 @@ function! s:RecursiveExpand() " <<<
 
 	let l = getline (ln)
 
+	let match_str = '[^-| `]'
 	while init_ind < (match (l, '[^-| `]') / 4)
 		let tl = l
 		let tln = ln
@@ -432,7 +440,7 @@ function! s:OpenExplorer() " <<<
 		let curfile = substitute (curfile, '[^/]*$', "", "")
 	endif
 
-	let curfile = escape (curfile, s:escape_chars)
+	let curfile = escape (curfile, w:escape_chars)
 
 	let oldwin = winnr()
 	wincmd p
@@ -478,10 +486,10 @@ function! s:Activate() " <<<
 	  call s:ReadDir (ln, curfile)
 		return
 	else " file
-		let f = escape (curfile, s:escape_chars)
+		let f = escape (curfile, w:escape_chars)
 		let oldwin = winnr()
 		wincmd p
-		if oldwin == winnr() || &modified
+		if oldwin == winnr() || (&modified && s:BufInWindows(winbufnr(winnr())) < 2)
 			wincmd p
 			exec ("new " . f)
 		else
@@ -577,9 +585,9 @@ function! s:StartShell() " <<<
 		let dir = substitute (curfile, '[^/]*$', "", "")
 	endif
 
-	execute "lcd " . escape (dir, s:escape_chars)
+	execute "lcd " . escape (dir, w:escape_chars)
 	shell
-	execute "lcd " . escape (prevdir, s:escape_chars)
+	execute "lcd " . escape (prevdir, w:escape_chars)
 endfunction " >>>
 
 "" GetAbsPath2() -  get absolute path at line ln, set w:firstdirline,
@@ -616,6 +624,7 @@ function! s:GetAbsPath2(ln,ignore_current) " <<<
 	endif
 
 	let indent = match(l,'[^-| `]') / 4
+
 	let dir = ""
 	while lnum > 0
 		let lnum = lnum - 1
@@ -652,6 +661,25 @@ endfunction " >>>
 function! s:ToggleHelp() " <<<
 	let w:helplines = (w:helplines <= 4) ? 6 : 0
 	call s:UpdateHeader ()
+endfunction " >>>
+
+"" Determine the number of windows open to this buffer number.
+"" Care of Yegappan Lakshman.  Thanks!
+fun! s:BufInWindows(bnum) " <<<
+  let cnt = 0
+  let winnum = 1
+  while 1
+    let bufnum = winbufnr(winnum)
+    if bufnum < 0
+      break
+    endif
+    if bufnum == a:bnum
+      let cnt = cnt + 1
+    endif
+    let winnum = winnum + 1
+  endwhile
+
+  return cnt
 endfunction " >>>
 
 "" UpdateHeader() - update the header
