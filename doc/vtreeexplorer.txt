@@ -1,8 +1,8 @@
-*vtreeexplorer.txt*	Vim Tree Explorer		April 5, 2002
+*vtreeexplorer.txt*	Vim Tree Explorer		Oct 27, 2005
 
-Authors:  T. Scott Urban  <tsurban@HORMELcomcast.net>
+Authors:  T. Scott Urban  <thomas.scott.urban@HORMELgmail.com>
 
-	  (remove HORMEL from my email first)
+          (remove the source of SPAM from my email first)
 
 0. DESCRIPTION					*vtreeexplorer*
 
@@ -87,6 +87,13 @@ directory sorting. Possible values:
 	-1 : directories sorted last
 
 This setting can be switched with the 'D' mapping (|vtreeexplorer-D|.
+
+treeExplIndent                                  *treeExplIndent*
+
+This variable is used on intialiation to determine the width of the tree
+structures drawn at the left of the browser.  The default value is 3 which
+yields a more compact view.  A value of 4 will emulate the old behavior.  the
+maximum and minimum values for this setting are 3 and 16, respectively.
 
 ==============================================================================
 4. VTREEEXPLORER TERMS				*vtreeexplorer-terms*

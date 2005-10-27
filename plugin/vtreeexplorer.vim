@@ -1,8 +1,8 @@
 "" File:        vtreeexplorer.vim
 "" Description: tree-like file system explorer for vim
-"" Version:     $Revision: 1.20 $ $Date: 2004/12/30 18:28:31 $
-"" Author:      TS Urban (tsurban@HORMELcomcast.net)
-""              (remove HORMEL from my email first)
+"" Version:     $Revision: 1.21 $ $Date: 2005/10/28 06:03:59 $
+"" Author:      TS Urban (thomas.scott.urban@HORMELgmail.net)
+""              (remove the source of SPAM from my email first)
 ""
 "" Instructions:
 ""   1 - source this file or put in your plugin directory
@@ -20,6 +20,7 @@
 ""    0 : no directory sorting
 ""    1 : directories sorting first
 ""   -1 : directories sorting last
+""  treeExplIndent   : width of tree indentation in spaces (min 3, max 8)
 ""
 "" Todo:
 ""   - global option for path separator
@@ -73,6 +74,21 @@ function! s:TreeExplorer(split, start) " <<<
 		let w:escape_chars = w:escape_chars . '+'
 	endif
 
+	" tree visual widget configuration, width limited to range [3,16]
+	let w:tree_wid_ind = (exists("g:treeExplIndent")) ? g:treeExplIndent : 3
+	let w:tree_wid_ind = (w:tree_wid_ind < 3) ?  3 : w:tree_wid_ind
+	let w:tree_wid_ind = (w:tree_wid_ind > 8) ? 16 : w:tree_wid_ind
+
+	let bar_char = '|'
+	let dsh_char = '-'
+	let grv_char = '`'
+	let spc_char = ' '
+
+	let w:tree_par_wid = bar_char . repeat (spc_char, w:tree_wid_ind - 2) . spc_char
+	let w:tree_dir_wid = bar_char . repeat (dsh_char, w:tree_wid_ind - 2) . spc_char
+	let w:tree_end_wid = grv_char . repeat (dsh_char, w:tree_wid_ind - 2) . spc_char
+	let w:tree_spc_wid = repeat (spc_char, w:tree_wid_ind)
+
 	" init help to short version
 	let w:helplines = 1
 
@@ -92,14 +108,15 @@ function! s:TreeExplorer(split, start) " <<<
   if has("syntax") && exists("g:syntax_on") && !has("syntax_items")
     syn match treeHlp  #^" .*#
     syn match treeDir  "^\.\. (up a directory)$"
+
 		syn match treeFld  "{{{"
 		syn match treeFld  "}}}"
-		syn match treePrt  #|   #
-		syn match treePrt  #|-- #
-		syn match treePrt  #`-- #
-		"syn match treeLnk  #[^-| `].* -> # contains=treeFld,treePrt
+
+		execute "syn match treePrt  #" . w:tree_par_wid . "#"
+		execute "syn match treePrt  #" . w:tree_dir_wid . "#"
+		execute "syn match treePrt  #" . w:tree_end_wid . "#"
+
 		syn match treeLnk  #[^-| `].* -> # contains=treeFld
-    "syn match treeDir  #.*/\([ {}]\{4\}\)*$# contains=treePrt,treeFld,treeLnk
     syn match treeDir  #[^-| `].*/\([ {}]\{4\}\)*$# contains=treeFld,treeLnk
     syn match treeCWD  #^/.*$# contains=treeFld
 
@@ -235,8 +252,8 @@ function! s:ReadDir(lpn,dir) " <<<
 
 	let @l = treeprt . pdirprt . ' {{{'
 
-	let treeprt = substitute (treeprt, '`-- ', '    ', "")
-	let treeprt = substitute (treeprt, '|-- ', '|   ', "")
+	let treeprt = substitute (treeprt, w:tree_end_wid, w:tree_spc_wid, "")
+	let treeprt = substitute (treeprt, w:tree_dir_wid, w:tree_par_wid, "")
 
 	" parse dir contents by '/'
 	let dirlines = substitute (dirlines, "\n", '/', "g")
@@ -267,12 +284,12 @@ function! s:ReadDir(lpn,dir) " <<<
 
 		if w:dirsort != 0
 			if isdir == 1
-				let @d = @d . "\n" . treeprt . '|-- ' . curdir
+				let @d = @d . "\n" . treeprt . w:tree_dir_wid . curdir
 			else
-				let @f = @f . "\n" . treeprt . '|-- ' . curdir
+				let @f = @f . "\n" . treeprt . w:tree_dir_wid . curdir
 			endif
 		else
-			let @l = @l . "\n" . treeprt . '|-- ' . curdir
+			let @l = @l . "\n" . treeprt . w:tree_dir_wid . curdir
 		endif
 	endwhile
 
@@ -302,7 +319,7 @@ function! s:ReadDir(lpn,dir) " <<<
 
 	" change last tree part to the final leaf marking, add final fold mark
 	let @l = getline(".")
-	let @l = substitute (@l, '|-- ', '`-- ', "")
+	let @l = substitute (@l, w:tree_dir_wid, w:tree_end_wid, "")
 	let @l = @l . foldprt . " }}}\n"
 
 	setlocal modifiable | silent normal dd
@@ -377,7 +394,7 @@ function! s:RecursiveExpand() " <<<
 		let init_ln = w:firstdirline
 	endif
 
-	let init_ind = match (getline (init_ln), '[^-| `]') / 4
+	let init_ind = match (getline (init_ln), '[^-| `]') / w:tree_wid_ind
 
 	let curfile = substitute (curfile, '[^/]*$', "", "")
 
@@ -403,7 +420,7 @@ function! s:RecursiveExpand() " <<<
 	let l = getline (ln)
 
 	let match_str = '[^-| `]'
-	while init_ind < (match (l, '[^-| `]') / 4)
+	while init_ind < (match (l, '[^-| `]') / w:tree_wid_ind)
 		let tl = l
 		let tln = ln
 		let ln = ln + 1
@@ -626,7 +643,7 @@ function! s:GetAbsPath2(ln,ignore_current) " <<<
 		let curfile = substitute (curfile, '/\?$', '/', "")
 	endif
 
-	let indent = match(l,'[^-| `]') / 4
+	let indent = match(l,'[^-| `]') / w:tree_wid_ind
 
 	let dir = ""
 	while lnum > 0
@@ -638,7 +655,7 @@ function! s:GetAbsPath2(ln,ignore_current) " <<<
 			break
 		endif
 		if lp =~ ' {{{$'
-			let lpindent = match(lp,'[^-| `]') / 4
+			let lpindent = match(lp,'[^-| `]') / w:tree_wid_ind
 			if lpindent < indent
 				if w:firstdirline == 0
 					let w:firstdirline = lnum
