@@ -1,6 +1,6 @@
 "" File:        vtreeexplorer.vim
 "" Description: tree-like file system explorer for vim
-"" Version:     $Revision: 1.21 $ $Date: 2005/10/28 06:03:59 $
+"" Version:     $Revision: 1.22 $ $Date: 2005/10/28 14:05:32 $
 "" Author:      TS Urban (thomas.scott.urban@HORMELgmail.net)
 ""              (remove the source of SPAM from my email first)
 ""
@@ -44,6 +44,17 @@ command! -n=? -complete=dir VSTreeExplore :call s:TreeExplorer(1, '<a>')
 "" support sessions
 autocmd BufNewFile TreeExplorer VTreeExplore
 
+""" create a string of chr cnt long - emulate vim7 repeat function
+function! s:MyRepeat(chr, cnt)
+	let sret = ""
+	let lcnt = a:cnt
+	while lcnt > 0
+		let sret = sret . a:chr
+		let lcnt = lcnt - 1
+	endwhile
+	return sret
+endf
+
 "" TreeExplorer() - set up explorer window
 function! s:TreeExplorer(split, start) " <<<
 
@@ -70,7 +81,7 @@ function! s:TreeExplorer(split, start) " <<<
 	let w:dirsort = (exists("g:treeExplDirSort")) ? g:treeExplDirSort : 0
 	if w:dirsort < -1 || w:dirsort > 1
 		let w:dirsort = 0
-		" TODO - neede?
+		" TODO - needed?
 		let w:escape_chars = w:escape_chars . '+'
 	endif
 
@@ -84,10 +95,10 @@ function! s:TreeExplorer(split, start) " <<<
 	let grv_char = '`'
 	let spc_char = ' '
 
-	let w:tree_par_wid = bar_char . repeat (spc_char, w:tree_wid_ind - 2) . spc_char
-	let w:tree_dir_wid = bar_char . repeat (dsh_char, w:tree_wid_ind - 2) . spc_char
-	let w:tree_end_wid = grv_char . repeat (dsh_char, w:tree_wid_ind - 2) . spc_char
-	let w:tree_spc_wid = repeat (spc_char, w:tree_wid_ind)
+	let w:tree_par_wid = bar_char . s:MyRepeat (spc_char, w:tree_wid_ind - 2) . spc_char
+	let w:tree_dir_wid = bar_char . s:MyRepeat (dsh_char, w:tree_wid_ind - 2) . spc_char
+	let w:tree_end_wid = grv_char . s:MyRepeat (dsh_char, w:tree_wid_ind - 2) . spc_char
+	let w:tree_spc_wid = s:MyRepeat (spc_char, w:tree_wid_ind)
 
 	" init help to short version
 	let w:helplines = 1
@@ -218,15 +229,6 @@ function! s:ReadDir(lpn,dir) " <<<
 	" TODO - error when dir no longer exists
 	execute "lcd " . escape (dir, w:escape_chars)
 
-	" @l is used for first line, last line, and if dir sorting is off
-	let save_l = @l | let @l = ""
-
-	" @f and @d are used for file and dirs with dir sorting
-	if w:dirsort != 0
-		let save_d = @d | let @d = ""
-		let save_f = @f | let @f = ""
-	endif
-
 	" change dos path to look like unix path
 	if has("unix") == 0 " TODO ?
 		let dir = substitute (dir, '\\', '/', "g")
@@ -249,6 +251,13 @@ function! s:ReadDir(lpn,dir) " <<<
 	let pdirprt = substitute (lps, '^[-| `]*', "", "")
 	let pdirprt = substitute (pdirprt, '[{} ]*$', "", "")
 	let foldprt = substitute (lps, '.*' . pdirprt, "", "")
+
+	" save states of registers for restoring
+	" @l is used for first line, last line, and if dir sorting is off
+	" @f and @d are used for file and dirs with dir sorting
+	let save_l = @l | let @l = ""
+	let save_d = @d | let @d = ""
+	let save_f = @f | let @f = ""
 
 	let @l = treeprt . pdirprt . ' {{{'
 
@@ -327,10 +336,8 @@ function! s:ReadDir(lpn,dir) " <<<
 
 	" restore registers
 	let @l = save_l
-	if w:dirsort != 0
-		let @d = save_d
-		let @f = save_f
-	endif
+	let @d = save_d
+	let @f = save_f
 
 	exec (":" . a:lpn)
 
@@ -540,6 +547,7 @@ function! s:RefreshDir() " <<<
 	" if there is no fold, just do normal ReadDir, and return
 	if @l !~ ' {{{$'
 		call s:ReadDir (init_ln, curfile)
+		let @l = save_l
 		return
 	endif
 
