@@ -1,6 +1,6 @@
 "" File:        vtreeexplorer.vim
 "" Description: tree-like file system explorer for vim
-"" Version:     $Revision: 1.22 $ $Date: 2005/10/28 14:05:32 $
+"" Version:     $Revision: 1.23 $ $Date: 2005/10/31 05:14:31 $
 "" Author:      TS Urban (thomas.scott.urban@HORMELgmail.net)
 ""              (remove the source of SPAM from my email first)
 ""
@@ -44,8 +44,8 @@ command! -n=? -complete=dir VSTreeExplore :call s:TreeExplorer(1, '<a>')
 "" support sessions
 autocmd BufNewFile TreeExplorer VTreeExplore
 
-""" create a string of chr cnt long - emulate vim7 repeat function
-function! s:MyRepeat(chr, cnt)
+"" create a string of chr cnt long - emulate vim7 repeat function
+function! s:MyRepeat(chr, cnt) " <<<
 	let sret = ""
 	let lcnt = a:cnt
 	while lcnt > 0
@@ -53,7 +53,7 @@ function! s:MyRepeat(chr, cnt)
 		let lcnt = lcnt - 1
 	endwhile
 	return sret
-endf
+endf " >>>
 
 "" TreeExplorer() - set up explorer window
 function! s:TreeExplorer(split, start) " <<<
@@ -185,6 +185,15 @@ function! s:InitWithDir(dir) " <<<
 	endif
 	let cwd = getcwd ()
 
+	if has("unix") == 0 
+		let cwd = substitute (cwd, '\\', '/', "g")
+		let is_root = (cwd =~ '^[A-Z]:/$') ? 1 : 0
+	else
+		let is_root = (cwd == "/") ? 1 : 0
+	endif
+
+	let cwd = substitute (cwd, '/*$', '/', "")
+
 	" clear buffer
 	setlocal modifiable | silent! normal ggdG
 	setlocal nomodifiable
@@ -196,10 +205,10 @@ function! s:InitWithDir(dir) " <<<
 	let save_f=@f
 
 	"insert parent link unless we're at / for unix or X:\ for dos
-	if cwd != "/" && cwd !~ '^[^/]..$'
+	if is_root == 0
 		let @f=".. (up a directory)"
 	endif
-	let @f=@f . "\n" . cwd  . "/\n\n"
+	let @f=@f . "\n" . cwd  . "\n\n"
 
 	setlocal modifiable | silent put f | setlocal nomodifiable
 
@@ -227,13 +236,20 @@ function! s:ReadDir(lpn,dir) " <<<
 	endif
 
 	" TODO - error when dir no longer exists
-	execute "lcd " . escape (dir, w:escape_chars)
+	try
+		execute "lcd " . escape (dir, w:escape_chars)
+	catch
+		echo "ERROR: changing to directory: " . dir
+		return
+	endtry
 
+	""" THIS BLOCK DOESN' DO ANYTHING
 	" change dos path to look like unix path
-	if has("unix") == 0 " TODO ?
-		let dir = substitute (dir, '\\', '/', "g")
-	endif
-	let dir = substitute (dir, '/\?$', '/', "")
+	"if has("unix") == 0 " TODO - so many dos/win variants, this seemed easier - maybe not correct (e.g. OS2, mac, etc)
+	"	let dir = substitute (dir, '\\', '/', "g")
+	"endif
+	"let dir = substitute (dir, '/\?$', '/', "")
+	""" THIS BLOCK DOESN' DO ANYTHING
 	
 	" get dir contents
 	if w:hidden_files == 1
@@ -582,7 +598,7 @@ function! s:ToggleHiddenFiles() " <<<
 	call s:RefreshDir()
 endfunction " >>>
 
-" toggle dir sorting
+"" ToggleDirSort() - toggle dir sorting
 function! s:ToggleDirSort() " <<<
 	if w:dirsort == 0
 		let w:dirsort = 1
