@@ -90,10 +90,16 @@ This setting can be switched with the 'D' mapping (|vtreeexplorer-D|.
 
 treeExplIndent                                  *treeExplIndent*
 
-This variable is used on intialiation to determine the width of the tree
+This variable is used on initialization to determine the width of the tree
 structures drawn at the left of the browser.  The default value is 3 which
 yields a more compact view.  A value of 4 will emulate the old behavior.  the
-maximum and minimum values for this setting are 3 and 16, respectively.
+maximum and minimum values for this setting are 2 and 8, respectively.
+
+treeExplNoList					 treeExplNoList
+
+This variable is used on initialization to tell the TreeExplorer not to list
+itself in the buffer list. Use of this setting prevents restore of the
+explorer with sessions.
 
 ==============================================================================
 4. VTREEEXPLORER TERMS				*vtreeexplorer-terms*

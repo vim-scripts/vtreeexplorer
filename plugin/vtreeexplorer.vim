@@ -1,6 +1,6 @@
 "" File:        vtreeexplorer.vim
 "" Description: tree-like file system explorer for vim
-"" Version:     $Revision: 1.23 $ $Date: 2005/10/31 05:14:31 $
+"" Version:     $Revision: 1.24 $ $Date: 2005/11/17 16:24:33 $
 "" Author:      TS Urban (thomas.scott.urban@HORMELgmail.net)
 ""              (remove the source of SPAM from my email first)
 ""
@@ -21,6 +21,7 @@
 ""    1 : directories sorting first
 ""   -1 : directories sorting last
 ""  treeExplIndent   : width of tree indentation in spaces (min 3, max 8)
+""  treeExplNoList   : don't list the explorer in the buffer list
 ""
 "" Todo:
 ""   - global option for path separator
@@ -38,8 +39,8 @@ let s:cpo_save = &cpo
 set cpo&vim
 
 "" create commands
-command! -n=? -complete=dir VTreeExplore :call s:TreeExplorer(0, '<a>')
-command! -n=? -complete=dir VSTreeExplore :call s:TreeExplorer(1, '<a>')
+command! -n=? -complete=dir VTreeExplore :call s:TreeExplorer(0, '<args>')
+command! -n=? -complete=dir VSTreeExplore :call s:TreeExplorer(1, '<args>')
 
 "" support sessions
 autocmd BufNewFile TreeExplorer VTreeExplore
@@ -108,6 +109,14 @@ function! s:TreeExplorer(split, start) " <<<
 	setlocal buftype=nowrite
 	setlocal bufhidden=delete " d
 	setlocal nowrap
+	setlocal foldcolumn=0
+
+	if exists("g:treeExplNoList")
+		setlocal nobuflisted
+	endif
+	if has('spell')
+		setlocal nospell
+	endif
 	iabc <buffer>
 
 	" setup folding for markers that will be inserted
@@ -181,7 +190,12 @@ endfunction " >>>
 "" InitWithDir() - reload tree with dir
 function! s:InitWithDir(dir) " <<<
 	if a:dir != ""
-		execute "lcd " . escape (a:dir, w:escape_chars)
+		try
+			execute "lcd " . escape (a:dir, w:escape_chars)
+		catch
+			echo "ERROR: changing to directory: " . a:dir
+			return
+		endtry
 	endif
 	let cwd = getcwd ()
 
@@ -194,6 +208,9 @@ function! s:InitWithDir(dir) " <<<
 
 	let cwd = substitute (cwd, '/*$', '/', "")
 
+	let save_f = @f
+	let save_y = @"
+
 	" clear buffer
 	setlocal modifiable | silent! normal ggdG
 	setlocal nomodifiable
@@ -201,8 +218,6 @@ function! s:InitWithDir(dir) " <<<
 	"insert header
 	call s:AddHeader()
 	normal G
-
-	let save_f=@f
 
 	"insert parent link unless we're at / for unix or X:\ for dos
 	if is_root == 0
@@ -216,7 +231,8 @@ function! s:InitWithDir(dir) " <<<
 
 	call s:ReadDir (line("."), cwd) " read dir
 
-	let @f=save_f
+	let @f = save_f
+	let @" = save_y
 endfunction " >>>
 
 "" ReadDir() -  read dir after current line with tree pieces and foldmarkers
@@ -274,6 +290,7 @@ function! s:ReadDir(lpn,dir) " <<<
 	let save_l = @l | let @l = ""
 	let save_d = @d | let @d = ""
 	let save_f = @f | let @f = ""
+	let save_y = @"
 
 	let @l = treeprt . pdirprt . ' {{{'
 
@@ -354,6 +371,7 @@ function! s:ReadDir(lpn,dir) " <<<
 	let @l = save_l
 	let @d = save_d
 	let @f = save_f
+	let @" = save_y
 
 	exec (":" . a:lpn)
 
@@ -629,8 +647,13 @@ function! s:StartShell() " <<<
 		let dir = substitute (curfile, '[^/]*$', "", "")
 	endif
 
-	execute "lcd " . escape (dir, w:escape_chars)
-	shell
+	try
+		execute "lcd " . escape (dir, w:escape_chars)
+		shell
+	catch
+		echo "ERROR: changing to directory: " . dir
+		return
+	endtry
 	execute "lcd " . escape (prevdir, w:escape_chars)
 endfunction " >>>
 
