@@ -76,7 +76,14 @@ Set this variable in your vimrc to start the exlorer with hidden files shown.
 Otherwise, the explorer will be started with hidden files (start with '.' for
 Unix) not shown.
 
-This setting can be be toggled with the 'a' mapping (|vtreeexplorer-a|.
+This setting can be be toggled with the 'a' mapping (|vtreeexplorer-a|).
+
+treeExplHidePattern				*treeExplHidePattern*
+
+Set this variable to a regular expression to avoid showing matching files and
+directories when the hidden option is set (in addition to hidden 'dotfiles').
+This variable can be changed at anytime and it will be reflected in the next
+refresh or directory load.
 
 treeExplDirSort					*treeExplDirSort*
 
@@ -191,7 +198,8 @@ Switch between the three directory sorting modes, described at
 'a'						*vtreeexplorer-a*
 
 Toggle showing hidden files.  Initial value can be set with global variable
-|treeExplHidden|.
+|treeExplHidden|. Hidden files are those starting with a dot or those defined
+by the regular expression in the variable |treeExplHidePattern|.
 
 '?'						*vtreeexplorer-?*
 

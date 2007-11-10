@@ -13,15 +13,16 @@
 ""         :helptags ~/.vim/doc
 ""
 "" Global Configuration Variables:
-""  treeExplVertical : split vertically when starting with VSTreeExplore
-""  treeExplWinSize  : window size (width or height) when doing VSTreeExplore
-""  treeExplHidden   : set to have explorer start with hidden files shown
-""  treeExplDirSort  : start explorer with desired directory sorting:
+""  treeExplVertical    : split vertically when starting with VSTreeExplore
+""  treeExplWinSize     : window size (width or height) when doing VSTreeExplore
+""  treeExplHidden      : set to have explorer start with hidden files shown
+""  treeExplHidePattern : set have matching files not shown
+""  treeExplDirSort     : start explorer with desired directory sorting:
 ""    0 : no directory sorting
 ""    1 : directories sorting first
 ""   -1 : directories sorting last
-""  treeExplIndent   : width of tree indentation in spaces (min 3, max 8)
-""  treeExplNoList   : don't list the explorer in the buffer list
+""  treeExplIndent      : width of tree indentation in spaces (min 3, max 8)
+""  treeExplNoList      : don't list the explorer in the buffer list
 ""
 "" Todo:
 ""   - global option for path separator
@@ -313,11 +314,21 @@ function! s:ReadDir(lpn,dir) " <<<
 	" parse dir contents by '/'
 	let dirlines = substitute (dirlines, "\n", '/', "g")
 
+	if exists("g:treeExplHidePattern")
+		let do_hide_re = 1
+	else
+		let do_hide_re = 0
+	endif
+
 	while strlen (dirlines) > 0
 		let curdir = substitute (dirlines, '/.*', "", "")
 		let dirlines = substitute (dirlines, '[^/]*/\?', "", "")
 
 		if w:hidden_files == 1 && curdir =~ '^\.\.\?$'
+			continue
+		endif
+
+		if w:hidden_files == 0 && do_hide_re == 1 && curdir =~ g:treeExplHidePattern
 			continue
 		endif
 
@@ -639,7 +650,8 @@ function! s:ToggleHiddenFiles() " <<<
 
 	let w:hidden_files = w:hidden_files ? 0 : 1
 	let msg = w:hidden_files ? "on" : "off"
-	let msg = "hidden files now = " . msg
+	let hre = exists("g:treeExplHidePattern") ? g:treeExplHidePattern : ''
+	let msg = "hidden (dotfiles and regex = '" . hre . "') files now = " . msg
 	echo msg
 	call s:UpdateHeader ()
 	call s:RefreshDir()
@@ -815,6 +827,8 @@ function! s:AddHeader() " <<<
 		let dt = "dirs last)\n"
 	endif
 
+	let hre = exists("g:treeExplHidePattern") ? g:treeExplHidePattern : ""
+
 	let save_f=@f
 	1
 	let ln = 3
@@ -835,7 +849,8 @@ function! s:AddHeader() " <<<
 		let ln=ln+1 | let @f=@f."\" S     = start a shell in cursor dir\n"
 		let ln=ln+1 | let @f=@f."\" :Yank = yank <range> lines withoug fold marks\n"
 		let ln=ln+1 | let @f=@f."\" D     = toggle dir sort (now = " . dt
-		let ln=ln+1 | let @f=@f."\" a     = toggle hidden files (now = "
+		let ln=ln+1 | let @f=@f."\" a     = toggle hidden (dotfiles and regex = '"
+					\ . hre . "') files (now = "
 					\ . ((w:hidden_files) ? "on)\n" : "off)\n")
 		let ln=ln+1 | let @f=@f."\" ?     = toggle long help\n"
 	else
