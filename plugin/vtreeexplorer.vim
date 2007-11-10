@@ -56,25 +56,13 @@ function! s:MyRepeat(chr, cnt) " <<<
 	return sret
 endf " >>>
 
-"" TreeExplorer() - set up explorer window
-function! s:TreeExplorer(split, start) " <<<
-
-	" dir to start in from arg, buff dir, or pwd
-	let fname = (a:start != "") ? a:start : expand ("%:p:h")
-	let fname = (fname != "") ? fname : getcwd ()
-
-	" construct command to open window
-	if a:split || &modified
-		" if starting with split, get split parameters from globals
-		let splitMode = (exists("g:treeExplVertical")) ? "vertical " : ""
-		let splitSize = (exists("g:treeExplWinSize")) ? g:treeExplWinSize : 20
-		let cmd = splitMode . splitSize . "new TreeExplorer"
-	else
-		let cmd = "e TreeExplorer"
+function! s:InitWindowVars() " <<<
+	if exists("w:tree_vars_defined")
+		return
 	endif
-	silent execute cmd
 
-	"" chars to escape in file/dir names - TODO '+' ?
+	let w:tree_vars_defined = 1
+
 	let w:escape_chars =  " `|\"~'#"
 
 	" win specific vars from globals if they exist
@@ -82,7 +70,6 @@ function! s:TreeExplorer(split, start) " <<<
 	let w:dirsort = (exists("g:treeExplDirSort")) ? g:treeExplDirSort : 0
 	if w:dirsort < -1 || w:dirsort > 1
 		let w:dirsort = 0
-		" TODO - needed?
 		let w:escape_chars = w:escape_chars . '+'
 	endif
 
@@ -104,6 +91,29 @@ function! s:TreeExplorer(split, start) " <<<
 	" init help to short version
 	let w:helplines = 1
 
+endfunction " >>>
+
+"" TreeExplorer() - set up explorer window
+function! s:TreeExplorer(split, start) " <<<
+
+	" dir to start in from arg, buff dir, or pwd
+	let fname = (a:start != "") ? a:start : expand ("%:p:h")
+	let fname = (fname != "") ? fname : getcwd ()
+
+	" construct command to open window
+	if a:split || &modified
+		" if starting with split, get split parameters from globals
+		let splitMode = (exists("g:treeExplVertical")) ? "vertical " : ""
+		let splitSize = (exists("g:treeExplWinSize")) ? g:treeExplWinSize : 20
+		let cmd = splitMode . splitSize . "new TreeExplorer"
+	else
+		let cmd = "e TreeExplorer"
+	endif
+	silent execute cmd
+
+	call s:InitWindowVars()
+
+	"" chars to escape in file/dir names - TODO '+' ?
 	" throwaway buffer options
 	setlocal noswapfile
 	setlocal buftype=nowrite
@@ -190,6 +200,8 @@ endfunction " >>>
 
 "" InitWithDir() - reload tree with dir
 function! s:InitWithDir(dir) " <<<
+	call s:InitWindowVars()
+
 	if a:dir != ""
 		try
 			execute "lcd " . escape (a:dir, w:escape_chars)
@@ -391,6 +403,8 @@ endfunction " >>>
 
 "" MoveParent() - move cursor to parent dir
 function! s:MoveParent() " <<<
+	call s:InitWindowVars()
+
 	let ln = line(".")
 	call s:GetAbsPath2 (ln, 1)
 	if w:firstdirline != 0
@@ -402,6 +416,8 @@ endfunction " >>>
 
 "" ChangeTop() - change top dir to cursor dir
 function! s:ChangeTop() " <<<
+	call s:InitWindowVars()
+
 	let ln = line(".")
   let l = getline(ln)
 
@@ -425,6 +441,8 @@ endfunction " >>>
 
 "" RecursiveExpand() - expand cursor dir recursively
 function! s:RecursiveExpand() " <<<
+	call s:InitWindowVars()
+
 	echo "recursively expanding, this might take a while (CTRL-C to stop)"
 
 	let curfile = s:GetAbsPath2(line("."), 0)
@@ -493,6 +511,8 @@ endfunction " >>>
 
 "" OpenExplorer() - open file explorer on cursor dir
 function! s:OpenExplorer() " <<<
+	call s:InitWindowVars()
+
 	let curfile = s:GetAbsPath2 (line ("."), 0)
 
 	if w:firstdirline == 0
@@ -517,6 +537,8 @@ endfunction " >>>
 
 "" Activate() - (un)fold read dirs, read unread dirs, open files, cd .. on ..
 function! s:Activate(how) " <<<
+	call s:InitWindowVars()
+
 	let ln = line(".")
   let l = getline(ln)
 
@@ -564,6 +586,8 @@ endfunction " >>>
 
 "" RefreshDir() - refresh current dir
 function! s:RefreshDir() " <<<
+	call s:InitWindowVars()
+
 	let curfile = s:GetAbsPath2(line("."), 0)
 
 	let init_ln = w:firstdirline
@@ -611,6 +635,8 @@ endfunction " >>>
 
 "" ToggleHiddenFiles() - toggle hidden files
 function! s:ToggleHiddenFiles() " <<<
+	call s:InitWindowVars()
+
 	let w:hidden_files = w:hidden_files ? 0 : 1
 	let msg = w:hidden_files ? "on" : "off"
 	let msg = "hidden files now = " . msg
@@ -621,6 +647,8 @@ endfunction " >>>
 
 "" ToggleDirSort() - toggle dir sorting
 function! s:ToggleDirSort() " <<<
+	call s:InitWindowVars()
+
 	if w:dirsort == 0
 		let w:dirsort = 1
 		let msg = "dirs first"
@@ -639,6 +667,8 @@ endfunction " >>>
 
 "" StartShell() - start shell in cursor dir
 function! s:StartShell() " <<<
+	call s:InitWindowVars()
+
 	let ln = line(".")
 
 	let curfile = s:GetAbsPath2 (ln, 1)
@@ -729,6 +759,8 @@ endfunction " >>>
 
 "" ToggleHelp() - toggle between long and short help
 function! s:ToggleHelp() " <<<
+	call s:InitWindowVars()
+
 	let w:helplines = (w:helplines <= 4) ? 6 : 0
 	call s:UpdateHeader ()
 endfunction " >>>
@@ -787,9 +819,9 @@ function! s:AddHeader() " <<<
 	1
 	let ln = 3
 	if w:helplines > 4
-		let ln=ln+1 | let @f=@f."\" o     = (file) open in another window\n"
+		let ln=ln+1 | let @f=   "\" o     = (file) open in another window\n"
 		let ln=ln+1 | let @f=@f."\" o     = (dir) toggle dir fold or load dir\n"
-		let ln=ln+1 | let @f=   "\" <ret> = same as 'o'\n"
+		let ln=ln+1 | let @f=@f."\" <ret> = same as 'o'\n"
 		let ln=ln+1 | let @f=@f."\" t     = same as 'o' but use new tab\n"
 		let ln=ln+1 | let @f=@f."\" X     = recursive expand cursor dir\n"
 		let ln=ln+1 | let @f=@f."\" E     = open Explorer on cursor dir\n"
