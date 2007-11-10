@@ -23,6 +23,7 @@ opening files from the tree.
 	5. VTREEEXPLORER MAPPINGS .......: |vtreeexplorer-mapping|
 	     '<enter>' ..................: |vtreeexplorer-enter|
 	     'o' ........................: |vtreeexplorer-o|
+	     't' ........................: |vtreeexplorer-t|
 	     'X' ........................: |vtreeexplorer-X|
 	     'E' ........................: |vtreeexplorer-E|
 	     'C' ........................: |vtreeexplorer-C|
@@ -135,6 +136,10 @@ case a new window will be opened for the file.
 
 If the cursor is on a line with a directory, load the directory if it isn't
 loaded, or toggle the fold for that directory, if the directory is loaded.
+
+'t'						*vtreeexplorer-t*
+
+Same as *vtreeexplorer-o* but use new tab instead window when opening the file.
 
 'X'						*vtreeexplorer-X*
 

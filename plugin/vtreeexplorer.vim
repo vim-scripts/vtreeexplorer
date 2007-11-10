@@ -153,8 +153,9 @@ function! s:TreeExplorer(split, start) " <<<
   set cpo&vim
 
 	" set up mappings and commands for this buffer
-  nnoremap <buffer> <cr> :call <SID>Activate()<cr>
-  nnoremap <buffer> o    :call <SID>Activate()<cr>
+  nnoremap <buffer> <cr> :call <SID>Activate("win")<cr>
+  nnoremap <buffer> o    :call <SID>Activate("win")<cr>
+	nnoremap <buffer> t    :call <SID>Activate("tab")<cr>
 	nnoremap <buffer> X    :call <SID>RecursiveExpand()<cr>
 	nnoremap <buffer> E    :call <SID>OpenExplorer()<cr>
   nnoremap <buffer> C    :call <SID>ChangeTop()<cr>
@@ -167,9 +168,9 @@ function! s:TreeExplorer(split, start) " <<<
 	nnoremap <buffer> D    :call <SID>ToggleDirSort()<cr>
 	nnoremap <buffer> a    :call <SID>ToggleHiddenFiles()<cr>
   nnoremap <buffer> ?    :call <SID>ToggleHelp()<cr>
-	nnoremap <buffer> <2-leftmouse> :call <SID>Activate()<cr>
+	nnoremap <buffer> <2-leftmouse> :call <SID>Activate("win")<cr>
 
-	command! -buffer -complete=dir -nargs=1 CD :call s:TreeCD('<a>')
+	command! -buffer -complete=dir -nargs=1 CD :call s:TreeCD('<args>')
 	command! -buffer -range -nargs=0 Yank :<line1>,<line2>y |
 				\ let @" = substitute (@", ' [{}]\{3\}', "", "g")
 
@@ -515,7 +516,7 @@ function! s:OpenExplorer() " <<<
 endfunction " >>>
 
 "" Activate() - (un)fold read dirs, read unread dirs, open files, cd .. on ..
-function! s:Activate() " <<<
+function! s:Activate(how) " <<<
 	let ln = line(".")
   let l = getline(ln)
 
@@ -550,7 +551,9 @@ function! s:Activate() " <<<
 		let f = escape (curfile, w:escape_chars)
 		let oldwin = winnr()
 		wincmd p
-		if oldwin == winnr() || (&modified && s:BufInWindows(winbufnr(winnr())) < 2)
+		if a:how == "tab"
+			exec ("tabedit " . f)
+		elseif oldwin == winnr() || (&modified && s:BufInWindows(winbufnr(winnr())) < 2)
 			wincmd p
 			exec ("new " . f)
 		else
@@ -784,9 +787,10 @@ function! s:AddHeader() " <<<
 	1
 	let ln = 3
 	if w:helplines > 4
-		let ln=ln+1 | let @f=   "\" <ret> = same as 'o' below\n"
 		let ln=ln+1 | let @f=@f."\" o     = (file) open in another window\n"
 		let ln=ln+1 | let @f=@f."\" o     = (dir) toggle dir fold or load dir\n"
+		let ln=ln+1 | let @f=   "\" <ret> = same as 'o'\n"
+		let ln=ln+1 | let @f=@f."\" t     = same as 'o' but use new tab\n"
 		let ln=ln+1 | let @f=@f."\" X     = recursive expand cursor dir\n"
 		let ln=ln+1 | let @f=@f."\" E     = open Explorer on cursor dir\n"
 		let ln=ln+1 | let @f=@f."\" C     = chdir top of tree to cursor dir\n"
