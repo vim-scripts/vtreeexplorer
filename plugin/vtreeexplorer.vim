@@ -1,7 +1,7 @@
 "" File:        vtreeexplorer.vim
 "" Description: tree-like file system explorer for vim
 "" Version:     $Revision: 1.24 $ $Date: 2005/11/17 16:24:33 $
-"" Author:      TS Urban (thomas.scott.urban@HORMELgmail.net)
+"" Author:      TS Urban (thomas.scott.urban@HORMELgmail.com)
 ""              (remove the source of SPAM from my email first)
 ""
 "" Instructions:
@@ -166,6 +166,7 @@ function! s:TreeExplorer(split, start) " <<<
 	" set up mappings and commands for this buffer
   nnoremap <buffer> <cr> :call <SID>Activate("win")<cr>
   nnoremap <buffer> o    :call <SID>Activate("win")<cr>
+  nnoremap <buffer> O    :call <SID>Activate("cur")<cr>
 	nnoremap <buffer> t    :call <SID>Activate("tab")<cr>
 	nnoremap <buffer> X    :call <SID>RecursiveExpand()<cr>
 	nnoremap <buffer> E    :call <SID>OpenExplorer()<cr>
@@ -586,6 +587,8 @@ function! s:Activate(how) " <<<
 		wincmd p
 		if a:how == "tab"
 			exec ("tabedit " . f)
+		elseif a:how == "cur"
+			exec ("tabedit " . f)
 		elseif oldwin == winnr() || (&modified && s:BufInWindows(winbufnr(winnr())) < 2)
 			wincmd p
 			exec ("new " . f)
@@ -836,6 +839,7 @@ function! s:AddHeader() " <<<
 		let ln=ln+1 | let @f=   "\" o     = (file) open in another window\n"
 		let ln=ln+1 | let @f=@f."\" o     = (dir) toggle dir fold or load dir\n"
 		let ln=ln+1 | let @f=@f."\" <ret> = same as 'o'\n"
+		let ln=ln+1 | let @f=@f."\" O     = same as 'o' but use replace explorer\n"
 		let ln=ln+1 | let @f=@f."\" t     = same as 'o' but use new tab\n"
 		let ln=ln+1 | let @f=@f."\" X     = recursive expand cursor dir\n"
 		let ln=ln+1 | let @f=@f."\" E     = open Explorer on cursor dir\n"
